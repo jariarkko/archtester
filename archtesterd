@@ -18,6 +18,7 @@ cmderrlogfile=/var/log/archtester.cmderr.log
 
 daemon=1
 debug=1
+sleeptime=2
 
 touch $logfile
 date >> $logfile
@@ -65,19 +66,26 @@ function archtester_ledinit {
 #
 
 function archtester_ledblink {
-    while true
+    pin=$1
+    sleeptimearg=$2
+    sleeptimeargm=`(echo scale=0; echo "$sleeptimearg * 100") | bc | cut -f1 -d.`
+    tused=0
+    tusedm=0
+    while [ $tusedm -lt $sleeptimeargm ]
     do
-        gpio -g write $1 1
-    	sleep 0.5
-        gpio -g write $1 0
-    	sleep 0.5
+        gpio -g write $pin 1
+    	sleep $blinkhalftime
+        gpio -g write $pin 0
+    	sleep $blinkhalftime
+	tused=`(echo scale=4; echo $tused + $blinkhalftime + $blinkhalftime) | bc`
+ 	tusedm=`(echo scale=0; echo "$tused * 100") | bc | cut -f1 -d.`
     done
 }
 
 #
 # Set one led mode
 #
-# Input: pin number (gpw numbering), state (on, off, blink)
+# Input: pin number (gpw numbering), state (on, off, blink), sleeptime (seconds)
 #
 
 function archtester_ledset {
@@ -87,7 +95,7 @@ function archtester_ledset {
 	on)
 	    gpio -g write $1 1;;
 	blink)
-	    archtester_ledblink $1 &
+	    archtester_ledblink $1 $sleeptime &
 	    nop=nop;;
 	*) nop=nop;;
     esac
@@ -96,7 +104,7 @@ function archtester_ledset {
 #
 # Set the led bank mode
 #
-# Input: mode (off, flash, search, good, bad)
+# Input: mode (off, flash, search, good, bad), sleeptime (seconds)
 #
 
 function archtester_ledsmode {
@@ -270,7 +278,7 @@ function archtester_loop {
 		mode=bad
 	    fi
 	fi
-	archtester_ledsmode $mode
+	archtester_ledsmode $mode $sleeptime
 	archtester_debug "Analysis result = $mode"
 	if [ $mode = $prevmode ]
 	then
@@ -280,7 +288,7 @@ function archtester_loop {
 	    echo mode=$mode v4=$v4found public=$v4publicfound v6=$v6found >> $logfile
 	    prevmode=$mode
 	fi
-	sleep 2
+	sleep $sleeptime
 	
     done
 }
@@ -310,6 +318,11 @@ do
 	    shift
 	    debug=1;;
 	x-q)
+	    shift
+	    debug=0;;
+	x-s)
+	    shift
+	    sleeptime=$1
 	    shift
 	    debug=0;;
 	*)
