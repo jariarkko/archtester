@@ -8,6 +8,10 @@ v4found=0
 v4publicfound=0
 v6found=1
 
+#
+# Constants -------------------------------------------------------------
+#
+
 ledredpin=17
 ledgreenpin=27
 ledyellowpin=22
