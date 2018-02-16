@@ -59,6 +59,22 @@ function archtester_ledinit {
 }
 
 #
+# Blink a led
+#
+# Input: pin number (gpw numbering)
+#
+
+function archtester_ledblink {
+    while true
+    do
+        gpio -g write $1 1
+    	sleep 0.5
+        gpio -g write $1 0
+    	sleep 0.5
+    done
+}
+
+#
 # Set one led mode
 #
 # Input: pin number (gpw numbering), state (on, off, blink)
@@ -71,7 +87,7 @@ function archtester_ledset {
 	on)
 	    gpio -g write $1 1;;
 	blink)
-	    gpio -g blink $1 &
+	    archtester_ledblink $1 &
 	    nop=nop;;
 	*) nop=nop;;
     esac
