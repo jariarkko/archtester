@@ -186,6 +186,7 @@ function archtester_analyze {
 #
 
 
+archtester_ledinit
 archtester_ledsmode flash
 sleep 1
 archtester_ledsmode off
