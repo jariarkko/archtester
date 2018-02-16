@@ -7,10 +7,27 @@ v6found=1
 interfaces=`ifconfig -s|fgrep -v Iface|fgrep -v lo|cut -f1 -d' '`
 for interface in $interfaces
 do
+  
   ifconfig $interface > /tmp/interface.$interface.data
-  grep 'inet addr:' /tmp/interface.$interface.data | cut -f2 -d: | sed 's/^ *//g' | cut -f1 -d' ' > /tmp/interface.$interface.addrs.v4
-  grep 'inet6 addr:' /tmp/interface.$interface.data | cut -f2- -d: | sed 's/^ *//g' | cut -f1 -d' ' > /tmp/interface.$interface.addrs.v6
-  grep 'inet6 addr:' /tmp/interface.$interface.data | sed 's/scopeid *0x20.link./Scope: Link/g' | sed 's/scopeid *0x0.global./Scope: Global/g' | sed 's/^.*Scope://g' | cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
+  cat /tmp/interface.$interface.data |
+      sed 's/inet /inet addr: /g' |
+      grep 'inet addr:' |
+      cut -f2 -d: |
+      sed 's/^ *//g' |
+      cut -f1 -d' ' > /tmp/interface.$interface.addrs.v4
+  cat /tmp/interface.$interface.data |
+      sed 's/inet6 /inet6 addr: /g' |
+      grep 'inet6 addr:' |
+      cut -f2- -d: |
+      sed 's/^ *//g' |
+      cut -f1 -d' ' > /tmp/interface.$interface.addrs.v6
+  cat /tmp/interface.$interface.data |
+      sed 's/inet6 /inet6 addr: /g' |
+      grep 'inet6 addr:' |
+      sed 's/scopeid *0x20.link./Scope: Link/g' |
+      sed 's/scopeid *0x0.global./Scope: Global/g' |
+      sed 's/^.*Scope://g' | cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
+  
   for a in `cat /tmp/interface.$interface.addrs.v4`
   do
     case $a in
