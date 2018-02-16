@@ -19,7 +19,7 @@ cmderrlogfile=/var/log/archtester.cmderr.log
 daemon=1
 debug=1
 sleeptime=2
-blinhalftime=0.3
+blinkhalftime=0.3
 
 touch $logfile
 date >> $logfile
