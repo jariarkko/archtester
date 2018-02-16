@@ -69,6 +69,7 @@ function archtester_ledinit {
 function archtester_ledblink {
     pin=$1
     sleeptimearg=$2
+    archtester_debug Led $pin set to blink
     sleeptimeargm=`(echo scale=0; echo "$sleeptimearg * 100") | bc | cut -f1 -d.`
     archtester_debug "Sleeptime $sleeptimearg, sleeptimem $sleeptimeargm"
     tused=0
@@ -97,8 +98,10 @@ function archtester_ledset {
     sleeparg=$3
     case $state in
 	off)
+	    archtester_debug Led $pinni set to off
 	    gpio -g write $pinni 0;;
 	on)
+	    archtester_debug Led $pinni set to on
 	    gpio -g write $pinni 1;;
 	blink)
 	    archtester_ledblink $pinni $sleeparg &
