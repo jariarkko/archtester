@@ -20,7 +20,7 @@ v4found=0
 v4publicfound=0
 v6found=1
 daemon=1
-debug=0
+debug=1
 
 touch $logfile
 date >> $logfile
@@ -285,6 +285,9 @@ do
 	x-d)
 	    shift
 	    debug=1;;
+	x-q)
+	    shift
+	    debug=0;;
 	*)
 	    echo "archtester: unexpected argument: $1"
 	    exit 1;;
@@ -301,6 +304,7 @@ then
     archtester_loop
 else
     archtester_debug daemon
-    nohup archtester_loop > $cmdlogfile 2> $cmderrlogfile &
+    archtester_loop > $cmdlogfile 2> $cmderrlogfile &
+    disown -r -h
     exit 0
 fi
