@@ -20,6 +20,7 @@ v4found=0
 v4publicfound=0
 v6found=1
 daemon=1
+debug=0
 
 touch $logfile
 date >> $logfile
@@ -31,15 +32,22 @@ sync
 #
 
 #
-# Function definitions --------------------------------------------------
-#
-
-#
 # Kill the archtester process
 #
 
 function archtester_kill {
   killall archtester > /dev/null 2> /dev/null
+}
+
+#
+# Debug printouts
+#
+
+function archtester_debug {
+    if [ $debug = 1 ]
+    then
+	echo "$*"
+    fi
 }
 
 #
@@ -123,6 +131,8 @@ function archtester_ledsmode {
 
 function archtester_analyze {
 
+    archtester_debug Looking at interfaces
+
     #
     # Determine what interfaces we have
     #
@@ -192,9 +202,9 @@ function archtester_analyze {
 	
     done
     
-    # echo V4: $v4found
-    # echo V4 public address $v4publicfound
-    # echo V6: $v6found
+    archtester_debug V4: $v4found
+    archtester_debug V4 public address $v4publicfound
+    archtester_debug V6: $v6found
     
 }
 
@@ -202,12 +212,13 @@ function archtester_analyze {
 # Analyzer main loop
 #
 
-function archtester_analyze {
+function archtester_loop {
 
     #
     # Initialise tester
     #
-    
+
+    archtester_debnug initialize
     archtester_ledinit
     archtester_ledsmode flash
     sleep 1
@@ -218,6 +229,7 @@ function archtester_analyze {
     # Main loop
     #
     
+    archtester_debnug main loop
     while true
     do
 	
@@ -269,6 +281,9 @@ do
 	x-f)
 	    shift
 	    daemon=0;;
+	x-d)
+	    shift
+	    debug=1;;
 	*)
 	    echo "archtester: unexpected argument: $1"
 	    exit 1;;
@@ -281,8 +296,10 @@ done
 
 if [ $daemon = 0 ]
 then
-    archtester_analyze
+    archtester_debug not daemon
+    archtester_loop
 else
-    nohup archtester_analyze > $cmdlogfile 2> $cmderrlogfile &
+    archtester_debug daemon
+    nohup archtester_loop > $cmdlogfile 2> $cmderrlogfile &
     exit 0
 fi
