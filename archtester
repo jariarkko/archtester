@@ -1,8 +1,91 @@
 #!/bin/bash
 
+#
+# Initialize ------------------------------------------------------------
+#
+
 v4found=0
 v4publicfound=0
 v6found=1
+
+ledredpin=17
+ledgreenpin=27
+ledyellowpin=22
+
+#
+# Function definitions --------------------------------------------------
+#
+
+#
+# Initialize leds
+#
+
+function archtester_ledinit {
+  gpio -g mode $ledredpin out
+  gpio -g mode $ledgreenpin out
+  gpio -g mode $ledyellowpin out
+}
+
+#
+# Set one led mode
+#
+# Input: pin number (gpw numbering), state (on, off, blink)
+#
+
+function archtester_ledset {
+    case $2 in
+	off)
+	    gpio -g write $1 0;;
+	on)
+	    gpio -g write $1 1;;
+	blink)
+	    gpio -g blink $1 &
+	    nop=nop;;
+	*) nop=nop;;
+    esac
+}
+
+#
+# Set the led bank mode
+#
+# Input: mode (searching, good, bad)
+#
+
+function archtester_ledsmode {
+	
+    redstate=off
+    greenstate=off
+    yellowstate=off
+    
+    killall gpio > /dev/null 2> /dev/null
+    
+    case $1 in
+	searching)
+	    redstate=off
+	    greenstate=off
+	    yellowstate=blink;;
+	good)
+	    redstate=off
+	    greenstate=on
+	    yellowstate=off;;
+	bad)
+	    redstate=on
+	    greenstate=off
+	    yellowstate=off;;
+	*)
+	    redstate=blinking
+	    greenstate=blinking
+	    yellowstate=blinking;;
+    esac
+    
+    archtester_ledset $ledredpin $redstate
+    archtester_ledset $ledgreenpin $greenstate
+    archtester_ledset $ledyellowpin $yellowstate
+}
+
+#
+# Main program ----------------------------------------------------------
+#
 
 interfaces=`ifconfig -s|fgrep -v Iface|fgrep -v lo|cut -f1 -d' '`
 for interface in $interfaces
@@ -26,13 +109,10 @@ do
       grep 'inet6 addr:' |
       sed 's/scopeid *0x20.link./Scope: Link/g' |
       sed 's/scopeid *0x0.global./Scope: Global/g' |
-      tee /tmp/debug1 |
+      sed 's/scopeid *0x5/Scope: Link/g' |
       sed 's/^ *//g' |
-      tee /tmp/debug2 |
       sed 's/^.*Scope://g' |
-      tee /tmp/debug3 |
       sed 's/^ *//g' |
-      tee /tmp/debug4 |
       cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
   
   for a in `cat /tmp/interface.$interface.addrs.v4`
@@ -65,11 +145,15 @@ echo V6: $v6found
 if [ $v4publicfound = 1 -o $v6found ]
 then
   echo OK!
+  archtester_ledsmode good
 else
   if [ $v4found = 0 ]
   then
+    archtester_ledsmode search
     echo Not connected!
   else
+    archtester_ledsmode bad
     echo Architecture Fault!
   fi
 fi
+
