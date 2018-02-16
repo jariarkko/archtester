@@ -31,6 +31,8 @@ do
       tee /tmp/debug2 |
       sed 's/^.*Scope://g' |
       tee /tmp/debug3 |
+      sed 's/^ *//g' |
+      tee /tmp/debug4 |
       cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
   
   for a in `cat /tmp/interface.$interface.addrs.v4`
