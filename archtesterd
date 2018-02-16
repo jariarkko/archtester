@@ -36,6 +36,7 @@ sync
 #
 
 function archtester_kill {
+  archtester_ledsmode off
   killall archtester > /dev/null 2> /dev/null
 }
 
