@@ -88,76 +88,112 @@ function archtester_ledsmode {
 }
 
 #
-# Main program ----------------------------------------------------------
+# One round of analysis ------------------------------------------------------
 #
 
-interfaces=`ifconfig -s|fgrep -v Iface|fgrep -v lo|cut -f1 -d' '`
-for interface in $interfaces
+function archtester_analyze {
+
+    #
+    # Determine what interfaces we have
+    #
+    
+    interfaces=`ifconfig -s|fgrep -v Iface|fgrep -v lo|cut -f1 -d' '`
+    
+    #
+    # Look at each interface, and what addresses it provides
+    #
+    
+    for interface in $interfaces
+    do
+	
+	ifconfig $interface > /tmp/interface.$interface.data
+	cat /tmp/interface.$interface.data |
+	    sed 's/inet /inet addr: /g' |
+	    grep 'inet addr:' |
+	    cut -f2 -d: |
+	    sed 's/^ *//g' |
+	    cut -f1 -d' ' > /tmp/interface.$interface.addrs.v4
+	cat /tmp/interface.$interface.data |
+	    sed 's/inet6 /inet6 addr: /g' |
+	    grep 'inet6 addr:' |
+	    cut -f2- -d: |
+	    sed 's/^ *//g' |
+	    cut -f1 -d' ' > /tmp/interface.$interface.addrs.v6
+	cat /tmp/interface.$interface.data |
+	    sed 's/inet6 /inet6 addr: /g' |
+	    grep 'inet6 addr:' |
+	    sed 's/scopeid *0x20.link./Scope: Link/g' |
+	    sed 's/scopeid *0x0.global./Scope: Global/g' |
+	    sed 's/scopeid *0x5/Scope: Link/g' |
+	    sed 's/^ *//g' |
+	    sed 's/^.*Scope://g' |
+	    sed 's/^ *//g' |
+	    cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
+	
+	#
+	# Determine from the IPv4 addresses what kind of IPv4 connectivity we have
+	#
+	
+	for a in `cat /tmp/interface.$interface.addrs.v4`
+	do
+	    case $a in
+		10.*) v4found=1;;      # RFC 1981
+		192.168.*) v4found=1;; # RFC 1981
+		172.16.*) v4found=1;;  # RFC 1981
+		169.254.*) ;;          # RFC 5731
+		0.0.0.0) ;;            # avoid special case if not assigned
+		127.*) ;;	             # avoid localhost addresses
+		*.*.*.*) v4found=1;
+			 v4publicfound=1;;
+		*) ;;                  # anything else, in case data is garbled
+	    esac
+	done
+	
+	#
+	# Determine from the IPv6 address scopes what kind of IPv6 connectivity we have
+	
+	for s in `cat /tmp/interface.$interface.scopes.v6`
+	do
+	    case $s in
+		Global) v6found=1;;
+		*) ;;
+	    esac
+	done
+	
+    done
+    
+    # echo V4: $v4found
+    # echo V4 public address $v4publicfound
+    # echo V6: $v6found
+    
+}
+
+#
+# Main program & loop -------------------------------------------------
+#
+
+
+while true
 do
-  
-  ifconfig $interface > /tmp/interface.$interface.data
-  cat /tmp/interface.$interface.data |
-      sed 's/inet /inet addr: /g' |
-      grep 'inet addr:' |
-      cut -f2 -d: |
-      sed 's/^ *//g' |
-      cut -f1 -d' ' > /tmp/interface.$interface.addrs.v4
-  cat /tmp/interface.$interface.data |
-      sed 's/inet6 /inet6 addr: /g' |
-      grep 'inet6 addr:' |
-      cut -f2- -d: |
-      sed 's/^ *//g' |
-      cut -f1 -d' ' > /tmp/interface.$interface.addrs.v6
-  cat /tmp/interface.$interface.data |
-      sed 's/inet6 /inet6 addr: /g' |
-      grep 'inet6 addr:' |
-      sed 's/scopeid *0x20.link./Scope: Link/g' |
-      sed 's/scopeid *0x0.global./Scope: Global/g' |
-      sed 's/scopeid *0x5/Scope: Link/g' |
-      sed 's/^ *//g' |
-      sed 's/^.*Scope://g' |
-      sed 's/^ *//g' |
-      cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
-  
-  for a in `cat /tmp/interface.$interface.addrs.v4`
-  do
-    case $a in
-      10.*) v4found=1;;      # RFC 1981
-      192.168.*) v4found=1;; # RFC 1981
-      172.16.*) v4found=1;;  # RFC 1981
-      169.254.*) ;;          # RFC 5731
-      0.0.0.0) ;;            # avoid special case if not assigned
-      127.*) ;;	             # avoid localhost addresses
-      *.*.*.*) v4found=1;
-	       v4publicfound=1;;
-      *) ;;                  # anything else, in case data is garbled
-    esac
-  done
-  for s in `cat /tmp/interface.$interface.scopes.v6`
-  do
-    case $s in
-      Global) v6found=1;;
-      *) ;;
-    esac
-  done
+
+    archtester_analyze
+    
+    if [ $v4publicfound = 1 -o $v6found ]
+    then
+	echo OK!
+	archtester_ledsmode good
+    else
+	if [ $v4found = 0 ]
+	then
+	    archtester_ledsmode search
+	    echo Not connected!
+	else
+	    archtester_ledsmode bad
+	    echo Architecture Fault!
+	fi
+    fi
+
+    sleep 1
+    
 done
-
-echo V4: $v4found
-echo V4 public address $v4publicfound
-echo V6: $v6found
-
-if [ $v4publicfound = 1 -o $v6found ]
-then
-  echo OK!
-  archtester_ledsmode good
-else
-  if [ $v4found = 0 ]
-  then
-    archtester_ledsmode search
-    echo Not connected!
-  else
-    archtester_ledsmode bad
-    echo Architecture Fault!
-  fi
-fi
 
