@@ -208,12 +208,13 @@ do
 	fi
     fi
     archtester_ledsmode $mode
-    if $mode = $prevmode
+    if [ $mode = $prevmode ]
     then
 	nop=nop
     else
 	date >> $logfile
 	echo mode=$mode v4=$v4found public=$v4publicfound v6=$v6found >> $logfile
+	prevmode=$mode
     fi
     sleep 2
     
