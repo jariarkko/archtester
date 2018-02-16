@@ -218,7 +218,7 @@ function archtester_loop {
     # Initialise tester
     #
 
-    archtester_debnug initialize
+    archtester_debug initialize
     archtester_ledinit
     archtester_ledsmode flash
     sleep 1
@@ -229,7 +229,7 @@ function archtester_loop {
     # Main loop
     #
     
-    archtester_debnug main loop
+    archtester_debug main loop
     while true
     do
 	
