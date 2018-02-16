@@ -26,9 +26,12 @@ do
       grep 'inet6 addr:' |
       sed 's/scopeid *0x20.link./Scope: Link/g' |
       sed 's/scopeid *0x0.global./Scope: Global/g' |
-      tee /tmp/debug |
+      tee /tmp/debug1 |
       sed 's/^ *//g' |
-      sed 's/^.*Scope://g' | cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
+      tee /tmp/debug2 |
+      sed 's/^.*Scope://g' |
+      tee /tmp/debug3 |
+      cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
   
   for a in `cat /tmp/interface.$interface.addrs.v4`
   do
