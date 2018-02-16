@@ -243,7 +243,7 @@ function archtester_loop {
 	
 	archtester_analyze
 	
-	if [ $v4publicfound = 1 -o $v6found ]
+	if [ $v4publicfound = 1 -o $v6found = 1 ]
 	then
 	    mode=good
 	else
