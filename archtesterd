@@ -80,7 +80,7 @@ function archtester_ledset {
 #
 # Set the led bank mode
 #
-# Input: mode (off, flash, searching, good, bad)
+# Input: mode (off, flash, search, good, bad)
 #
 
 function archtester_ledsmode {
@@ -100,7 +100,7 @@ function archtester_ledsmode {
 	    redstate=on
 	    greenstate=on
 	    yellowstate=on;;
-	searching)
+	search)
 	    redstate=off
 	    greenstate=off
 	    yellowstate=blink;;
