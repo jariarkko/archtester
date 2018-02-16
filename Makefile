@@ -2,6 +2,6 @@
 all:
 
 install:
-	cp archtester /sbin
-	cp archtesterd /etc/init.d/
-	update-rc.d archtesterd defaults
+	cp archtesterd /sbin
+	cp archtester /etc/init.d/
+	update-rc.d archtester defaults

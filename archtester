@@ -1,306 +1,72 @@
-#!/bin/bash
+#!/bin/sh
 
 #
-# Constants -------------------------------------------------------------
-#
+### BEGIN INIT INFO
+# Provides:          archtesterd
+# Required-Start:    $remote_fs $local_fs
+# Required-Stop:     $remote_fs $local_fs
+# Should-Start: 
+# Should-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: ARCHTESTER client
+# Description:
+### END INIT INFO
 
-version=0.2
-ledredpin=17
-ledgreenpin=27
-ledyellowpin=22
-logfile=/var/log/archtester.log
-cmdlogfile=/var/log/archtester.cmd.log
-cmderrlogfile=/var/log/archtester.cmderr.log
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+ARCHTESTERD=/sbin/archtesterd
+NAME=archtesterd
+PIDFILE=/var/run/archtesterd.pid
 
-#
-# Initialize ------------------------------------------------------------
-#
+test -x $ARCHTESTERD || exit 0
 
-v4found=0
-v4publicfound=0
-v6found=1
-daemon=1
-debug=0
+. /lib/lsb/init-functions
 
-touch $logfile
-date >> $logfile
-echo "Started" >> $logfile
-sync
-
-#
-# Function definitions --------------------------------------------------
-#
-
-#
-# Kill the archtester process
-#
-
-function archtester_kill {
-  killall archtester > /dev/null 2> /dev/null
+sanity()
+{
 }
 
-#
-# Debug printouts
-#
-
-function archtester_debug {
-    if [ $debug = 1 ]
-    then
-	echo "archtester: debug: $*"
-    fi
-}
-
-#
-# Initialize leds
-#
-
-function archtester_ledinit {
-  gpio -g mode $ledredpin out
-  gpio -g mode $ledgreenpin out
-  gpio -g mode $ledyellowpin out
-}
-
-#
-# Set one led mode
-#
-# Input: pin number (gpw numbering), state (on, off, blink)
-#
-
-function archtester_ledset {
-    case $2 in
-	off)
-	    gpio -g write $1 0;;
-	on)
-	    gpio -g write $1 1;;
-	blink)
-	    gpio -g blink $1 &
-	    nop=nop;;
-	*) nop=nop;;
-    esac
-}
-
-#
-# Set the led bank mode
-#
-# Input: mode (off, flash, searching, good, bad)
-#
-
-function archtester_ledsmode {
-	
-    redstate=off
-    greenstate=off
-    yellowstate=off
-    
-    killall gpio > /dev/null 2> /dev/null
-    
-    case $1 in
-	off)
-	    redstate=off
-	    greenstate=off
-	    yellowstate=off;;
-	flash)
-	    redstate=on
-	    greenstate=on
-	    yellowstate=on;;
-	searching)
-	    redstate=off
-	    greenstate=off
-	    yellowstate=blink;;
-	good)
-	    redstate=off
-	    greenstate=on
-	    yellowstate=off;;
-	bad)
-	    redstate=on
-	    greenstate=off
-	    yellowstate=off;;
-	*)
-	    redstate=blinking
-	    greenstate=blinking
-	    yellowstate=blinking;;
-    esac
-    
-    archtester_ledset $ledredpin $redstate
-    archtester_ledset $ledgreenpin $greenstate
-    archtester_ledset $ledyellowpin $yellowstate
-}
-
-#
-# One round of analysis ------------------------------------------------------
-#
-
-function archtester_analyze {
-
-    archtester_debug Looking at interfaces
-
-    #
-    # Determine what interfaces we have
-    #
-    
-    interfaces=`ifconfig -s|fgrep -v Iface|fgrep -v lo|cut -f1 -d' '`
-    
-    #
-    # Look at each interface, and what addresses it provides
-    #
-    
-    for interface in $interfaces
-    do
-	
-	ifconfig $interface > /tmp/interface.$interface.data
-	cat /tmp/interface.$interface.data |
-	    sed 's/inet /inet addr: /g' |
-	    grep 'inet addr:' |
-	    cut -f2 -d: |
-	    sed 's/^ *//g' |
-	    cut -f1 -d' ' > /tmp/interface.$interface.addrs.v4
-	cat /tmp/interface.$interface.data |
-	    sed 's/inet6 /inet6 addr: /g' |
-	    grep 'inet6 addr:' |
-	    cut -f2- -d: |
-	    sed 's/^ *//g' |
-	    cut -f1 -d' ' > /tmp/interface.$interface.addrs.v6
-	cat /tmp/interface.$interface.data |
-	    sed 's/inet6 /inet6 addr: /g' |
-	    grep 'inet6 addr:' |
-	    sed 's/scopeid *0x20.link./Scope: Link/g' |
-	    sed 's/scopeid *0x0.global./Scope: Global/g' |
-	    sed 's/scopeid *0x5/Scope: Link/g' |
-	    sed 's/^ *//g' |
-	    sed 's/^.*Scope://g' |
-	    sed 's/^ *//g' |
-	    cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
-	
-	#
-	# Determine from the IPv4 addresses what kind of IPv4 connectivity we have
-	#
-	
-	for a in `cat /tmp/interface.$interface.addrs.v4`
-	do
-	    case $a in
-		10.*) v4found=1;;      # RFC 1981
-		192.168.*) v4found=1;; # RFC 1981
-		172.16.*) v4found=1;;  # RFC 1981
-		169.254.*) ;;          # RFC 5731
-		0.0.0.0) ;;            # avoid special case if not assigned
-		127.*) ;;	             # avoid localhost addresses
-		*.*.*.*) v4found=1;
-			 v4publicfound=1;;
-		*) ;;                  # anything else, in case data is garbled
-	    esac
-	done
-	
-	#
-	# Determine from the IPv6 address scopes what kind of IPv6 connectivity we have
-	
-	for s in `cat /tmp/interface.$interface.scopes.v6`
-	do
-	    case $s in
-		Global) v6found=1;;
-		*) ;;
-	    esac
-	done
-	
-    done
-    
-    archtester_debug V4: $v4found
-    archtester_debug V4 public address $v4publicfound
-    archtester_debug V6: $v6found
-    
-}
-
-#
-# Analyzer main loop
-#
-
-function archtester_loop {
-
-    #
-    # Initialise tester
-    #
-
-    archtester_debug initialize
-    archtester_ledinit
-    archtester_ledsmode flash
-    sleep 1
-    archtester_ledsmode off
-    prevmode=none
-    
-    #
-    # Main loop
-    #
-    
-    archtester_debug main loop
-    while true
-    do
-	
-	archtester_analyze
-	
-	if [ $v4publicfound = 1 -o $v6found ]
-	then
-	    mode=good
-	else
-	    if [ $v4found = 0 ]
-	    then
-		mode=search
-	    else
-		mode=bad
-	    fi
+case "$1" in
+start)
+	sanity
+	if pidofproc -p $PIDFILE $ARCHTESTERD >/dev/null; then
+		log_warning_msg "$NAME is already running"
+		exit 0
 	fi
-	archtester_ledsmode $mode
-	archtester_debug "Analysis result = $mode"
-	if [ $mode = $prevmode ]
-	then
-	    nop=nop
+	$ARCHTESTERD
+        ;;
+stop)
+	sanity
+	$ARCHTESTERD -x
+	;;
+restart|force-reload)
+	sanity
+	$ARCHTESTERD -x
+	$ARCHTESTERD
+        ;;
+try-restart)
+	if ! pidofproc -p $PIDFILE $ARCHTESTERD >/dev/null; then
+		log_warning_msg "$NAME is not running"
 	else
-	    date >> $logfile
-	    echo mode=$mode v4=$v4found public=$v4publicfound v6=$v6found >> $logfile
-	    prevmode=$mode
+		sanity
+		$ARCHTESTERD -x
+		$ARCHTESTERD
 	fi
-	sleep 2
-	
-    done
-}
-
-#
-# Main program -----------------------------------------------------
-#
-
-#
-# Parse arguments
-#
-
-while [ $# -gt 0 ]
-do
-    case x$1 in
-	x-X)
-	    shift
-	    exec archtester_kill;;
-	x-v)
-	    shift
-	    echo "archtester version " $version
-	    exit 0;;
-	x-f)
-	    shift
-	    daemon=0;;
-	x-d)
-	    shift
-	    debug=1;;
-	*)
-	    echo "archtester: unexpected argument: $1"
-	    exit 1;;
-    esac
-done
-
-#
-# Decide if to run as a daemon or not
-#
-
-if [ $daemon = 0 ]
-then
-    archtester_debug not daemon
-    archtester_loop
-else
-    archtester_debug daemon
-    nohup archtester_loop > $cmdlogfile 2> $cmderrlogfile &
-    exit 0
-fi
+	;;
+reload)
+	if ! pidofproc -p $PIDFILE $ARCHTESTERD >/dev/null; then
+		log_failure_msg "$NAME is not running"
+		exit 7
+	fi
+	sanity
+	$ARCHTESTERD -x
+	$ARCHTESTERD
+        ;;
+status)
+        status_of_proc -p $PIDFILE $ARCHTESTERD "$NAME" || exit $?
+        ;;
+*)
+        log_failure_msg "Usage: /etc/init.d/archtesterd {start|stop|restart|try-restart|force-reload|status}"
+	exit 1
+        ;;
+esac
