@@ -70,6 +70,7 @@ function archtester_ledblink {
     pin=$1
     sleeptimearg=$2
     sleeptimeargm=`(echo scale=0; echo "$sleeptimearg * 100") | bc | cut -f1 -d.`
+    archtester_debug "Sleeptime $sleeptimearg, sleeptimem $sleeptimeargm"
     tused=0
     tusedm=0
     while [ $tusedm -lt $sleeptimeargm ]
@@ -80,6 +81,7 @@ function archtester_ledblink {
     	sleep $blinkhalftime
 	tused=`(echo scale=4; echo $tused + $blinkhalftime + $blinkhalftime) | bc`
  	tusedm=`(echo scale=0; echo "$tused * 100") | bc | cut -f1 -d.`
+ 	archtester_debug "Tused $tused, tusedm $tusedm"
     done
 }
 
