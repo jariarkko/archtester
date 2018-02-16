@@ -13,8 +13,8 @@ The tester architecture is configurable and network-driven; the device where the
 
 The easiest installation method is to retrieve the software from GitHub:
 
-  git clone https://github.com/jariarkko/archtester.git
-  make install
+    git clone https://github.com/jariarkko/archtester.git
+    make install
   
 # Projects
 
