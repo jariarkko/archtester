@@ -16,9 +16,6 @@ cmderrlogfile=/var/log/archtester.cmderr.log
 # Initialize ------------------------------------------------------------
 #
 
-v4found=0
-v4publicfound=0
-v6found=1
 daemon=1
 debug=1
 
@@ -133,6 +130,14 @@ function archtester_ledsmode {
 function archtester_analyze {
 
     archtester_debug Looking at interfaces
+
+    #
+    # Initialize analysis
+    #
+    
+    v4found=0
+    v4publicfound=0
+    v6found=0
 
     #
     # Determine what interfaces we have
