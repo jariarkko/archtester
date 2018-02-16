@@ -24,6 +24,7 @@ test -x $ARCHTESTERD || exit 0
 
 sanity()
 {
+    nop=nop
 }
 
 case "$1" in
