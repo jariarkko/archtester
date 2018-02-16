@@ -46,7 +46,7 @@ function archtester_kill {
 function archtester_debug {
     if [ $debug = 1 ]
     then
-	echo "$*"
+	echo "archtester: debug: $*"
     fi
 }
 
@@ -247,6 +247,7 @@ function archtester_loop {
 	    fi
 	fi
 	archtester_ledsmode $mode
+	archtester_debug "Analysis result = $mode"
 	if [ $mode = $prevmode ]
 	then
 	    nop=nop
