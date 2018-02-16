@@ -1,0 +1,71 @@
+#!/bin/sh
+
+#
+### BEGIN INIT INFO
+# Provides:          archtesterd
+# Required-Start:    $remote_fs $local_fs
+# Required-Stop:     $remote_fs $local_fs
+# Should-Start: 
+# Should-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: ARCHTESTER client
+# Description:
+### END INIT INFO
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+ARCHTESTERD=/sbin/archtesterd
+NAME=archtesterd
+PIDFILE=/var/run/archtesterd.pid
+
+test -x $ARCHTESTERD || exit 0
+
+. /lib/lsb/init-functions
+
+sanity()
+{
+}
+
+case "$1" in
+start)
+	sanity
+	if pidofproc -p $PIDFILE $ARCHTESTERD >/dev/null; then
+		log_warning_msg "$NAME is already running"
+		exit 0
+	fi
+	$ARCHTESTERD
+        ;;
+stop)
+	sanity
+	$ARCHTESTERD -x
+	;;
+restart|force-reload)
+	sanity
+	$ARCHTESTERD -x
+	$ARCHTESTERD
+        ;;
+try-restart)
+	if ! pidofproc -p $PIDFILE $ARCHTESTERD >/dev/null; then
+		log_warning_msg "$NAME is not running"
+	else
+		sanity
+		$ARCHTESTERD -x
+		$ARCHTESTERD
+	fi
+	;;
+reload)
+	if ! pidofproc -p $PIDFILE $ARCHTESTERD >/dev/null; then
+		log_failure_msg "$NAME is not running"
+		exit 7
+	fi
+	sanity
+	$ARCHTESTERD -n
+        ;;
+status)
+        status_of_proc -p $PIDFILE $ARCHTESTERD "$NAME" || exit $?
+        ;;
+*)
+        log_failure_msg "Usage: /etc/init.d/archtesterd {start|stop|restart|try-restart|force-reload|status}"
+	exit 1
+        ;;
+esac

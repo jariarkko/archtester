@@ -4,10 +4,13 @@
 # Constants -------------------------------------------------------------
 #
 
+version=0.2
 ledredpin=17
 ledgreenpin=27
 ledyellowpin=22
 logfile=/var/log/archtester.log
+cmdlogfile=/var/log/archtester.cmd.log
+cmderrlogfile=/var/log/archtester.cmderr.log
 
 #
 # Initialize ------------------------------------------------------------
@@ -16,6 +19,8 @@ logfile=/var/log/archtester.log
 v4found=0
 v4publicfound=0
 v6found=1
+daemon=1
+
 touch $logfile
 date >> $logfile
 echo "Started" >> $logfile
@@ -24,6 +29,18 @@ sync
 #
 # Function definitions --------------------------------------------------
 #
+
+#
+# Function definitions --------------------------------------------------
+#
+
+#
+# Kill the archtester process
+#
+
+function archtester_kill {
+  killall archtester > /dev/null 2> /dev/null
+}
 
 #
 # Initialize leds
@@ -182,41 +199,91 @@ function archtester_analyze {
 }
 
 #
-# Main program & loop -------------------------------------------------
+# Analyzer main loop
 #
 
+function archtester_analyze {
 
-archtester_ledinit
-archtester_ledsmode flash
-sleep 1
-archtester_ledsmode off
-prevmode=none
-
-while true
-do
-
-    archtester_analyze
+    #
+    # Initialise tester
+    #
     
-    if [ $v4publicfound = 1 -o $v6found ]
-    then
-	mode=good
-    else
-	if [ $v4found = 0 ]
+    archtester_ledinit
+    archtester_ledsmode flash
+    sleep 1
+    archtester_ledsmode off
+    prevmode=none
+    
+    #
+    # Main loop
+    #
+    
+    while true
+    do
+	
+	archtester_analyze
+	
+	if [ $v4publicfound = 1 -o $v6found ]
 	then
-	    mode=search
+	    mode=good
 	else
-	    mode=bad
+	    if [ $v4found = 0 ]
+	    then
+		mode=search
+	    else
+		mode=bad
+	    fi
 	fi
-    fi
-    archtester_ledsmode $mode
-    if [ $mode = $prevmode ]
-    then
-	nop=nop
-    else
-	date >> $logfile
-	echo mode=$mode v4=$v4found public=$v4publicfound v6=$v6found >> $logfile
-	prevmode=$mode
-    fi
-    sleep 2
-    
+	archtester_ledsmode $mode
+	if [ $mode = $prevmode ]
+	then
+	    nop=nop
+	else
+	    date >> $logfile
+	    echo mode=$mode v4=$v4found public=$v4publicfound v6=$v6found >> $logfile
+	    prevmode=$mode
+	fi
+	sleep 2
+	
+    done
+}
+
+#
+# Main program -----------------------------------------------------
+#
+
+#
+# Parse arguments
+#
+
+while [ $# -gt 0 ]
+do
+    case x$1 in
+	x-X)
+	    shift
+	    exec archtester_kill;;
+	x-v)
+	    shift
+	    echo "archtester version " $version
+	    exit 0;;
+	x-f)
+	    shift
+	    daemon=0;;
+	*)
+	    echo "archtester: unexpected argument: $1"
+	    exit 1;;
+    esac
+  fi
 done
+
+#
+# Decide if to run as a daemon or not
+#
+
+if [ $daemon = 0 ]
+then
+    archtester_analyze
+else
+    nohup archtester_analyze > $cmdlogfile 2> $cmderrlogfile &
+    exit 0
+fi
