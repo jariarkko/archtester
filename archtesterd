@@ -35,7 +35,7 @@ sync
 #
 
 function archtester_kill {
-  archtester_ledsmode off
+  archtester_ledsmode off 0.0
   killall archtester > /dev/null 2> /dev/null
 }
 
@@ -114,14 +114,17 @@ function archtester_ledset {
 #
 
 function archtester_ledsmode {
-	
+
+    modforleds=$1
+    sleepytime=$2
+    
     redstate=off
     greenstate=off
     yellowstate=off
     
     # killall gpio > /dev/null 2> /dev/null
     
-    case $1 in
+    case $modforleds in
 	off)
 	    redstate=off
 	    greenstate=off
@@ -148,9 +151,9 @@ function archtester_ledsmode {
 	    yellowstate=blinking;;
     esac
     
-    archtester_ledset $ledredpin $redstate
-    archtester_ledset $ledgreenpin $greenstate
-    archtester_ledset $ledyellowpin $yellowstate
+    archtester_ledset $ledredpin $redstate $sleepytime
+    archtester_ledset $ledgreenpin $greenstate $sleepytime
+    archtester_ledset $ledyellowpin $yellowstate $sleepytime
 }
 
 #
