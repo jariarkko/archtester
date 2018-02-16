@@ -113,7 +113,7 @@ function archtester_ledsmode {
     greenstate=off
     yellowstate=off
     
-    killall gpio > /dev/null 2> /dev/null
+    # killall gpio > /dev/null 2> /dev/null
     
     case $1 in
 	off)
@@ -250,11 +250,11 @@ function archtester_loop {
 
     archtester_debug initialize
     archtester_ledinit
-    archtester_ledsmode off
+    archtester_ledsmode off 0.5
     sleep 0.5
-    archtester_ledsmode flash
+    archtester_ledsmode flash 1.5
     sleep 1.5
-    archtester_ledsmode off
+    archtester_ledsmode off 0.5
     prevmode=none
     
     #
