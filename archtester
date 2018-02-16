@@ -26,6 +26,7 @@ do
       grep 'inet6 addr:' |
       sed 's/scopeid *0x20.link./Scope: Link/g' |
       sed 's/scopeid *0x0.global./Scope: Global/g' |
+      tee /tmp/debug |
       sed 's/^.*Scope://g' | cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
   
   for a in `cat /tmp/interface.$interface.addrs.v4`
@@ -37,7 +38,8 @@ do
       169.254.*) ;;          # RFC 5731
       0.0.0.0) ;;            # avoid special case if not assigned
       127.*) ;;	             # avoid localhost addresses
-      *.*.*.*) v4publicfound=1;;
+      *.*.*.*) v4found=1;
+	       v4publicfound=1;;
       *) ;;                  # anything else, in case data is garbled
     esac
   done
