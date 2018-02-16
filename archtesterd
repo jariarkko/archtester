@@ -221,8 +221,10 @@ function archtester_loop {
 
     archtester_debug initialize
     archtester_ledinit
+    archtester_ledsmode off
+    sleep 0.5
     archtester_ledsmode flash
-    sleep 1
+    sleep 1.5
     archtester_ledsmode off
     prevmode=none
     
