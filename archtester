@@ -1,20 +1,25 @@
 #!/bin/bash
 
 #
-# Initialize ------------------------------------------------------------
-#
-
-v4found=0
-v4publicfound=0
-v6found=1
-
-#
 # Constants -------------------------------------------------------------
 #
 
 ledredpin=17
 ledgreenpin=27
 ledyellowpin=22
+logfile=/var/log/archtester.log
+
+#
+# Initialize ------------------------------------------------------------
+#
+
+v4found=0
+v4publicfound=0
+v6found=1
+touch $logfile
+date >> $logfile
+echo "Started" >> $logfile
+sync
 
 #
 # Function definitions --------------------------------------------------
@@ -52,7 +57,7 @@ function archtester_ledset {
 #
 # Set the led bank mode
 #
-# Input: mode (searching, good, bad)
+# Input: mode (off, flash, searching, good, bad)
 #
 
 function archtester_ledsmode {
@@ -64,6 +69,14 @@ function archtester_ledsmode {
     killall gpio > /dev/null 2> /dev/null
     
     case $1 in
+	off)
+	    redstate=off
+	    greenstate=off
+	    yellowstate=off;;
+	flash)
+	    redstate=on
+	    greenstate=on
+	    yellowstate=on;;
 	searching)
 	    redstate=off
 	    greenstate=off
@@ -173,6 +186,11 @@ function archtester_analyze {
 #
 
 
+archtester_ledsmode flash
+sleep 1
+archtester_ledsmode off
+prevmode=none
+
 while true
 do
 
@@ -180,17 +198,23 @@ do
     
     if [ $v4publicfound = 1 -o $v6found ]
     then
-	archtester_ledsmode good
+	mode=good
     else
 	if [ $v4found = 0 ]
 	then
-	    archtester_ledsmode search
+	    mode=search
 	else
-	    archtester_ledsmode bad
+	    mode=bad
 	fi
     fi
-
+    archtester_ledsmode $mode
+    if $mode = $prevmode
+    then
+	nop=nop
+    else
+	date >> $logfile
+	echo mode=$mode v4=$v4found public=$v4publicfound v6=$v6found >> $logfile
+    fi
     sleep 2
     
 done
-

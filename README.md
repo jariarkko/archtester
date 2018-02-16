@@ -14,6 +14,12 @@ The tester architecture is configurable and network-driven; the device where the
 The easiest installation method is to retrieve the software from GitHub:
 
   git clone https://github.com/jariarkko/archtester.git
+  make install
+  
+# Projects
 
+Further development is still needed. We'd like to see for instance:
 
-
+* Building the user-pluggable interface; for now, the operation of the tester is completely fixed.
+* Adding a web-based UI where you can control the operation of the tester, or see more details. The idea is that each tester would have its own web page where you can see the most current measurement, be able to configure wireless LAN parameters, etc.
+* Adding support for wifi-networks.
