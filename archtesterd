@@ -19,6 +19,7 @@ cmderrlogfile=/var/log/archtester.cmderr.log
 daemon=1
 debug=1
 sleeptime=2
+blinhalftime=0.3
 
 touch $logfile
 date >> $logfile
@@ -89,13 +90,16 @@ function archtester_ledblink {
 #
 
 function archtester_ledset {
-    case $2 in
+    pinni=$1
+    state=$2
+    sleeparg=$3
+    case $state in
 	off)
-	    gpio -g write $1 0;;
+	    gpio -g write $pinni 0;;
 	on)
-	    gpio -g write $1 1;;
+	    gpio -g write $pinni 1;;
 	blink)
-	    archtester_ledblink $1 $sleeptime &
+	    archtester_ledblink $pinni $sleeparg &
 	    nop=nop;;
 	*) nop=nop;;
     esac
@@ -337,7 +341,7 @@ done
 
 if [ $daemon = 0 ]
 then
-    archtester_debug not daemon
+    archtester_debug foreground
     archtester_loop
 else
     archtester_debug daemon
