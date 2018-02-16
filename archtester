@@ -180,20 +180,17 @@ do
     
     if [ $v4publicfound = 1 -o $v6found ]
     then
-	echo OK!
 	archtester_ledsmode good
     else
 	if [ $v4found = 0 ]
 	then
 	    archtester_ledsmode search
-	    echo Not connected!
 	else
 	    archtester_ledsmode bad
-	    echo Architecture Fault!
 	fi
     fi
 
-    sleep 1
+    sleep 2
     
 done
 
