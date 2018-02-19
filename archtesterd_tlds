@@ -1,0 +1,30 @@
+#!/bin/bash
+
+#
+# Initialize ---------------------------------------------------------
+#
+
+IANASRC="https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
+TMPBASE=/tmp/archtesterd_tlds_
+TMPIANAFILE=${TMPBASE}tlds.txt
+TMPCLEANFILE=${TMPBASE}tlds_clean.txt
+
+#
+# Measurement --------------------------------------------------------
+#
+
+#
+# Fetch data from IANA
+#
+
+wget -q -O $TMPIANAFILE "$IANASRC"
+
+#
+# Remove junk, comments, empty lines, etc.
+#
+
+fgrep -v '#' $TMPIANAFILE |
+egrep -v '^ *$'> $TMPCLEANFILE
+
+cat $TMPCLEANFILE |
+wc -l
