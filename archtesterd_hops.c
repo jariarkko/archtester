@@ -246,7 +246,17 @@ archtesterd_runtest(const char* interface,
   //
   
   if ((sd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
-    perror ("socket() failed to get socket descriptor for using ioctl() ");
+    perror ("archtesterd_hops: socket() failed to get socket descriptor for using ioctl() ");
+    exit(1);
+  }
+  
+  if (setsockopt (sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof (on)) < 0) {
+    perror ("archtesterd_hops: setsockopt() failed to set IP_HDRINCL ");
+    exit(1);
+  }
+  
+  if (setsockopt (sd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof (ifr)) < 0) {
+    perror ("archtesterd_hops: setsockopt() failed to bind to interface ");
     exit(1);
   }
 
@@ -259,6 +269,15 @@ archtesterd_runtest(const char* interface,
 				   ttl,
 				   &packet,
 				   &packetLength);
+
+  //
+  // Send the packet
+  //
+  
+  if (sendto (sd, packet, packetLength, 0, (struct sockaddr *) &destinationAddress, sizeof (struct sockaddr)) < 0)  {
+    perror ("archtesterd_hops: sendto() failed ");
+    exit(1);
+  }
   
   //
   // Done. Return.
