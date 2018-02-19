@@ -100,6 +100,96 @@ archtesterd_iptostring(struct sockaddr_in* in) {
 }
 
 //
+// Checksum per RFC 1071
+//
+
+uint16_t
+archtesterd_checksum(uint16_t* data,
+		     int length)
+{
+  register uint32_t sum = 0;
+  int count = length;
+  
+  while (count > 1) {
+    sum += *(data++);
+    count -= 2;
+  }
+  
+  if (count > 0) {
+    sum += *(uint8_t*)data;
+  }
+  
+  while (sum >> 16) {
+    sum = (sum & 0xffff) + (sum >> 16);
+  }
+  
+  return(~sum);
+}
+
+//
+// Construct an ICMPv4 packet
+//
+
+static void
+archtesterd_constructicmp4packet(struct sockaddr_in* source,
+				 struct sockaddr_in* destination,
+				 unsigned char ttl,
+				 char** resultPacket,
+				 unsigned int resultPacketLength)  {
+
+  static const char* message = "archtester";
+  static char data[IP_MAXPACKET];
+  static char packet[IP_MAXPACKET];
+  struct icmp icmphdr;
+  struct ip iphdr;
+  unsigned int dataLength;
+  unsigned int icmpLength;
+  unsigned int packetLength;
+  
+  //
+  // Fill in ICMP parts
+  //
+  
+  icmphdr.icmp_type = ICMP_ECHO;
+  icmphdr.icmp_code = 0;
+  icmphdr.icmp_id = 0;
+  icmphdr.icmp_seq = 0;
+  icmphdr.icmp_cksum = 0;
+  dataLength = strlen(message);
+  strcpy(data,message);
+  icmpLength = ICMP_HDRLEN + dataLength;
+  memcpy(packet + IP4_HDRLEN,&icmphdr,ICMP_HDRLEN);
+  memcpy(packet + IP4_HDRLEN + ICMP_HDRLEN,data,dataLength);
+  icmphdr.icmp_cksum = archtesterd_checksum((uint16_t*)(packet + IP4_HDRLEN), icmpLength);
+  
+  //
+  // Fill in the IPv4 header
+  //
+  
+  iphdr.ip_hl = 5;
+  iphdr.ip_v = 4;
+  iphdr.ip_tos = 0;
+  packetLength = IP4_HDRLEN + icmpLength;
+  iphdr.ip_len = htons (packetLength);
+  iphdr.ip_id = 0;
+  iphdr.ip_off = 0;
+  iphdr.ip_ttl = ttl;
+  iphdr.ip_p = IPPROTO_ICMP;
+  iphdr.ip_src = *(long)(&source->source->sin_addr);
+  iphdr.ip_dst = *(long)(&destination->source->sin_addr);
+  iphdr.ip_sum = 0;
+  iphdr.ip_sum = archtesterd_checksum((uint16_t*)&iphdr,IP4_HDRLEN);
+  memcpy (packet, &iphdr, IP4_HDRLEN);
+  
+  //
+  // Return the packet
+  //
+  
+  *resultPacket = packet;
+  *resultPacketLength = packetLength;
+}
+
+//
 // The main program for running a test
 //
 
@@ -135,7 +225,14 @@ archtesterd_runtest(const char* interface,
     perror ("socket() failed to get socket descriptor for using ioctl() ");
     exit(1);
   }
-  
+
+  //
+  //
+  //
+
+  //
+  // Done. Return.
+  //
 }
 
 
