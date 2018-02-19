@@ -190,8 +190,8 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   iphdr.ip_off = 0;
   iphdr.ip_ttl = ttl;
   iphdr.ip_p = IPPROTO_ICMP;
-  iphdr.ip_src = *(long*)(&source->sin_addr);
-  iphdr.ip_dst = *(long*)(&destination->sin_addr);
+  iphdr.ip_src = source->sin_addr;
+  iphdr.ip_dst = destination->sin_addr;
   iphdr.ip_sum = 0;
   iphdr.ip_sum = archtesterd_checksum((uint16_t*)&iphdr,IP4_HDRLEN);
   memcpy (packet, &iphdr, IP4_HDRLEN);
@@ -252,7 +252,7 @@ archtesterd_runtest(const char* interface,
 				   &destinationAddress,
 				   ttl,
 				   &packet,
-				   &acketLength);
+				   &packetLength);
   
   //
   // Done. Return.
