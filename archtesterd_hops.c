@@ -86,6 +86,20 @@ archtesterd_getdestinationaddress(const char* destination,
 }
 
 //
+// Mapping addresses to strings (n.n.n.n or h:h:...:h)
+//
+
+const char*
+archtesterd_iptostring(struct sockaddr_in* in) {
+  char* result = (char*)malloc(INET_ADDRSTRLEN+1);
+  memset(result,0,INET_ADDRSTRLEN+1);
+  if (inet_ntop (AF_INET, in->sin_addr, result, INET_ADDRSTRLEN) == NULL) {
+    fprintf(stderr, "archtesterd_hops: inet_ntop() failed: %s", strerror (status));
+    exit(1);
+  }
+}
+
+//
 // The main program for running a test
 //
 
@@ -104,7 +118,15 @@ archtesterd_runtest(const char* interface,
   
   archtesterd_getifindex(interface,&ifindex,&sourceAddress);
   archtesterd_getdestinationaddress(destination,&destinationAddress);
+
+  //
+  // Debugs
+  //
   
+  if (debug) printf("archtesterd_hops: debug: ifindex = %d\n", ifindex);
+  if (debug) printf("archtesterd_hops: debug: source = %s\n", archtesterd_iptostring(&sourceAddress));
+  if (debug) printf("archtesterd_hops: debug: destination = %s\n", archtesterd_iptostring(&destinationAddress));
+    
   //
   // Get a raw socket
   //
