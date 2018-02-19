@@ -168,6 +168,6 @@ main(int argc,
     argc--; argv++;
   }
 
-  runtest(testDestination);
+  archtesterd_runtest(testDestination);
   exit(0);
 }
