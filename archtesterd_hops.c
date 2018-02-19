@@ -35,6 +35,7 @@ static int debug = 0;
 static void
 archtesterd_getifindex(const char* interface,
 		       int* ifIndex,
+		       struct ifreq* ifrp,
 		       struct sockaddr_in *addr) {
   
   struct ifreq ifr;
@@ -60,6 +61,7 @@ archtesterd_getifindex(const char* interface,
     exit(1);
   }
   *ifIndex = ifr.ifr_ifindex;
+  *ifrp = ifr;
   
   //
   // Find own source address
@@ -76,7 +78,7 @@ archtesterd_getifindex(const char* interface,
   //
   // Cleanup and return
   //
-  
+
   close (sd);
 }
 
@@ -221,6 +223,7 @@ archtesterd_runtest(const char* interface,
   struct sockaddr_in destinationAddress;
   struct sockaddr_in sourceAddress;
   unsigned int packetLength;
+  struct ifreq ifr;
   int hdrison = 1;
   int ttl = 10;
   char* packet;
@@ -231,7 +234,7 @@ archtesterd_runtest(const char* interface,
   // Find out ifindex, own address, destination address
   //
   
-  archtesterd_getifindex(interface,&ifindex,&sourceAddress);
+  archtesterd_getifindex(interface,&ifindex,&ifr,&sourceAddress);
   archtesterd_getdestinationaddress(destination,&destinationAddress);
 
   //
