@@ -15,7 +15,22 @@
 #include <unistd.h>
 #include <errno.h>
 
+//
+// Constants
+//
+
+#define IP4_HDRLEN		20
+#define ICMP4_HDRLEN		 8
+
+//
+// Variables
+//
+
 static int debug = 0;
+
+//
+// Finding out an interface index for a named interface
+//
 
 static void
 archtesterd_getifindex(const char* interface,
@@ -157,9 +172,9 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   icmphdr.icmp_cksum = 0;
   dataLength = strlen(message);
   strcpy(data,message);
-  icmpLength = ICMP_HDRLEN + dataLength;
-  memcpy(packet + IP4_HDRLEN,&icmphdr,ICMP_HDRLEN);
-  memcpy(packet + IP4_HDRLEN + ICMP_HDRLEN,data,dataLength);
+  icmpLength = ICMP4_HDRLEN + dataLength;
+  memcpy(packet + IP4_HDRLEN,&icmphdr,ICMP4_HDRLEN);
+  memcpy(packet + IP4_HDRLEN + ICMP4_HDRLEN,data,dataLength);
   icmphdr.icmp_cksum = archtesterd_checksum((uint16_t*)(packet + IP4_HDRLEN), icmpLength);
   
   //
