@@ -23,3 +23,5 @@ Further development is still needed. We'd like to see for instance:
 * Building the user-pluggable interface; for now, the operation of the tester is completely fixed.
 * Adding a web-based UI where you can control the operation of the tester, or see more details. The idea is that each tester would have its own web page where you can see the most current measurement, be able to configure wireless LAN parameters, etc.
 * Adding support for wifi-networks.
+* The addition of a "selector" switch that can be used to select the type of an architectural measurement, e.g., direct connectivity, path purity, number of hops, and so on.
+* The development of further tests that facilitate the measurement of architectural factors on a given network or on the Internet.
