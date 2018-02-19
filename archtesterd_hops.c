@@ -195,6 +195,12 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   iphdr.ip_sum = 0;
   iphdr.ip_sum = archtesterd_checksum((uint16_t*)&iphdr,IP4_HDRLEN);
   memcpy (packet, &iphdr, IP4_HDRLEN);
+
+  //
+  // Debugs
+  //
+
+  if (debug) printf("archtesterd_hops: debug: constructed a packet of %u bytes, ttl = %u\n", packetLength, ttl);
   
   //
   // Return the packet
