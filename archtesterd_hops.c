@@ -14,7 +14,7 @@
 
 static int debug = 0;
 
-static void
+static int
 archtesterd_getifindex(const char* interface) {
   
   struct ifreq ifr;
