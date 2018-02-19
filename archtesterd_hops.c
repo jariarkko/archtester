@@ -218,7 +218,8 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
 //
 
 static void
-archtesterd_runtest(const char* interface,
+archtesterd_runtest(unsigned int startTtl,
+		    const char* interface,
 		    const char* destination) {
 
   struct sockaddr_in destinationAddress;
@@ -226,7 +227,7 @@ archtesterd_runtest(const char* interface,
   unsigned int packetLength;
   struct ifreq ifr;
   int hdrison = 1;
-  int ttl = 10;
+  int ttl = startTtl;
   char* packet;
   int ifindex;
   int sd;
@@ -296,6 +297,7 @@ main(int argc,
 
   const char* testDestination = "www.google.com";
   const char* interface = "eth0";
+  unsigned int startTtl = 10;
   
   argc--; argv++;
   while (argc > 0) {
@@ -306,6 +308,13 @@ main(int argc,
       debug = 1;
     } else if (strcmp(argv[0],"-i") == 0 && argc > 1) {
       interface = argv[1];
+      argc--; argv++;
+    } else if (strcmp(argv[0],"-t") == 0 && argc > 1) {
+      startTtl = atoi(argv[1]);
+      if (startTtl <= 0) {
+	fprintf(stderr,"archtesterd_hops: invalid TTL value -- exit\n");
+	exit(1);
+      }
       argc--; argv++;
     } else if (argv[0][0] == '-') {
       fprintf(stderr,"archtesterd_hops: unrecognised option -- exit\n");
