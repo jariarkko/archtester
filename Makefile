@@ -10,14 +10,20 @@ SOURCES=	archtester \
 		archtesterd_hops.c \
 		Makefile
 
+OBJECTS=	archtesterd_hops.o
+
 CFLAGS=		-g
 
 CC=		cc
+LD=		cc
 
 all:	$(PROGRAMS)
 
-archtesterd_hops:	$(SOURCES)
-	$(CC) $(CFLAGS) -c archtesterd_hops.c -o archtesterd_hops
+archtesterd_hops:	$(SOURCES) $(OBJECTS)
+	$(LC) $(CFLAGS) archtesterd_hops.o -o archtesterd_hops
+
+archtesterd_hops.o:	$(SOURCES)
+	$(CC) $(CFLAGS) -c archtesterd_hops.c
 
 install:	$(PROGRAMS)
 	apt-get install bc
