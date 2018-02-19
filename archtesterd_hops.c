@@ -93,8 +93,8 @@ const char*
 archtesterd_iptostring(struct sockaddr_in* in) {
   char* result = (char*)malloc(INET_ADDRSTRLEN+1);
   memset(result,0,INET_ADDRSTRLEN+1);
-  if (inet_ntop (AF_INET, in->sin_addr, result, INET_ADDRSTRLEN) == NULL) {
-    fprintf(stderr, "archtesterd_hops: inet_ntop() failed: %s", strerror (status));
+  if (inet_ntop (AF_INET, (void*)&in->sin_addr, result, INET_ADDRSTRLEN) == NULL) {
+    fprintf(stderr, "archtesterd_hops: inet_ntop() failed -- exit\n");
     exit(1);
   }
 }
