@@ -150,7 +150,7 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
 				 struct sockaddr_in* destination,
 				 unsigned char ttl,
 				 char** resultPacket,
-				 unsigned int resultPacketLength)  {
+				 unsigned int* resultPacketLength)  {
 
   static const char* message = "archtester";
   static char data[IP_MAXPACKET];
@@ -190,8 +190,8 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   iphdr.ip_off = 0;
   iphdr.ip_ttl = ttl;
   iphdr.ip_p = IPPROTO_ICMP;
-  iphdr.ip_src = *(long)(&source->source->sin_addr);
-  iphdr.ip_dst = *(long)(&destination->source->sin_addr);
+  iphdr.ip_src = *(long)(&source->sin_addr);
+  iphdr.ip_dst = *(long)(&destination->sin_addr);
   iphdr.ip_sum = 0;
   iphdr.ip_sum = archtesterd_checksum((uint16_t*)&iphdr,IP4_HDRLEN);
   memcpy (packet, &iphdr, IP4_HDRLEN);
@@ -214,8 +214,11 @@ archtesterd_runtest(const char* interface,
 
   struct sockaddr_in sourceAddress;
   struct sockaddr_in destinationAddress;
+  char* packet;
+  unsigned int packetLength;
   int ifindex;
   int sd;
+  int ttl = 10;
 
   //
   // Find out ifindex, own address, destination address
@@ -242,9 +245,15 @@ archtesterd_runtest(const char* interface,
   }
 
   //
-  //
+  // Create a packet
   //
 
+  archtesterd_constructicmp4packet(&sourceAddress,
+				   &destinationAddress,
+				   ttl,
+				   &packet,
+				   &acketLength);
+  
   //
   // Done. Return.
   //
