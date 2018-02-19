@@ -41,7 +41,7 @@ archtesterd_getifindex(const char* interface,
     perror ("archtesterd_hops: ioctl() failed to find interface ");
     exit(1);
   }
-  *ifindex = ifr.ifr_ifindex;
+  *ifIndex = ifr.ifr_ifindex;
   
   //
   // Find own source address
