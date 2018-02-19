@@ -12,10 +12,12 @@ SOURCES=	archtester \
 
 CFLAGS=		-g
 
+CC=		cc
+
 all:	$(PROGRAMS)
 
 archtesterd_hops:	$(SOURCES)
-	CC $(CFLAGS) -c archtesterd_hops.c -o archtesterd_hops
+	$(CC) $(CFLAGS) -c archtesterd_hops.c -o archtesterd_hops
 
 install:	$(PROGRAMS)
 	apt-get install bc
