@@ -23,6 +23,5 @@ install:	$(PROGRAMS)
 	cp archtester /etc/init.d/
 	update-rc.d archtester defaults
 
-copy
 wc:
 	wc -l $(SOURCES)
