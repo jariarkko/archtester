@@ -81,7 +81,7 @@ main(int argc,
       exit(0);
     } else if (strcmp(argv[0],"-d") == 0) {
       debug = 1;
-    } else if (strcmp(argv[0],"-i" && argc > 1) == 0) {
+    } else if (strcmp(argv[0],"-i") == 0 && argc > 1) {
       interface = argv[1];
       argc--; argv++;
     } else if (argv[0][0] == '-') {
