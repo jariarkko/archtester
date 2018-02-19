@@ -218,14 +218,15 @@ static void
 archtesterd_runtest(const char* interface,
 		    const char* destination) {
 
-  struct sockaddr_in sourceAddress;
   struct sockaddr_in destinationAddress;
-  char* packet;
+  struct sockaddr_in sourceAddress;
   unsigned int packetLength;
+  int hdrison = 1;
+  int ttl = 10;
+  char* packet;
   int ifindex;
   int sd;
-  int ttl = 10;
-
+  
   //
   // Find out ifindex, own address, destination address
   //
@@ -250,7 +251,7 @@ archtesterd_runtest(const char* interface,
     exit(1);
   }
   
-  if (setsockopt (sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof (on)) < 0) {
+  if (setsockopt (sd, IPPROTO_IP, IP_HDRINCL, &hdrison, sizeof (hdrison)) < 0) {
     perror ("archtesterd_hops: setsockopt() failed to set IP_HDRINCL ");
     exit(1);
   }
