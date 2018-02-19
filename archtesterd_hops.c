@@ -64,19 +64,6 @@ archtesterd_runtest(const char* interface,
     exit(1);
   }
   
-  //
-  // Find interface index
-  //
-  
-  memset (&ifr, 0, sizeof (ifr));
-  snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", interface);
-  if (ioctl (sd, SIOCGIFINDEX, &ifr) < 0) {
-    perror ("ioctl() failed to find interface ");
-    return (EXIT_FAILURE);
-  }
-  close (sd);
-  
-  return(ifr.ifr_ifindex);
 }
 
 
