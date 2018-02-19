@@ -328,7 +328,8 @@ main(int argc,
     argc--; argv++;
   }
 
-  archtesterd_runtest(interface,
+  archtesterd_runtest(startTtl,
+		      interface,
 		      testDestination);
   exit(0);
 }
