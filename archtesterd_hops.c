@@ -78,7 +78,7 @@ archtesterd_getdestinationaddress(const char* destination,
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = hints.ai_flags | AI_CANONNAME;
   
-  if ((rcode = getaddrinfo (target, NULL, &hints, &res)) != 0) {
+  if ((rcode = getaddrinfo(destination, NULL, &hints, &res)) != 0) {
     fprintf (stderr, "archtesterd_hops: cannot resolve address %s: %s\n", destination, gai_strerror (rcode));
     exit(1);
   }
