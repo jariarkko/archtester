@@ -178,6 +178,7 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   memcpy(packet + IP4_HDRLEN,&icmphdr,ICMP4_HDRLEN);
   memcpy(packet + IP4_HDRLEN + ICMP4_HDRLEN,data,dataLength);
   icmphdr.icmp_cksum = archtesterd_checksum((uint16_t*)(packet + IP4_HDRLEN), icmpLength);
+  memcpy(packet + IP4_HDRLEN,&icmphdr,ICMP4_HDRLEN);
   
   //
   // Fill in the IPv4 header
