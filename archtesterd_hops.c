@@ -333,6 +333,12 @@ static int
 archtesterd_packetisforus(char* receivedPacket,
 			  int receivedPacketLength,
 			  struct sockaddr_in* sourceAddress) {
+  struct ip iphdr;
+
+  memcpy(&iphdr,receivedPacket,IP4_HDRLEN);
+  if (memcmp(&iphdr.ip_dst,&sourceAddress->sin_addr,sizeof(iphdr.ip_dst)) != 0) return(0);
+  
+  return(1);
 }
 
 //
