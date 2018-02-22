@@ -292,6 +292,7 @@ archtesterd_runtest(unsigned int startTtl,
 
   struct sockaddr_in destinationAddress;
   struct sockaddr_in sourceAddress;
+  struct sockaddr_in bindAddress;
   unsigned int packetLength;
   int receivedPacketLength;
   char* receivedPacket;
@@ -302,6 +303,7 @@ archtesterd_runtest(unsigned int startTtl,
   int ifindex;
   int bytes;
   int sd;
+  int rd;
   
   //
   // Find out ifindex, own address, destination address
@@ -319,7 +321,7 @@ archtesterd_runtest(unsigned int startTtl,
   debugf("archtesterd_hops: debug: destination = %s\n", archtesterd_iptostring(&destinationAddress));
     
   //
-  // Get a raw socket
+  // Get an output raw socket
   //
   
   if ((sd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
@@ -337,6 +339,24 @@ archtesterd_runtest(unsigned int startTtl,
     exit(1);
   }
 
+  //
+  // Get an input raw socket
+  //
+  
+  if ((rd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1) {
+    perror("archtesterd_hops: cannot create input raw socket ");
+    exit(1);
+  }
+  
+  bindAddress.sin_family = AF_INET;
+  bindAddress.sin_port = 0;
+  bindAddress.sin_addr.s_addr = sourceAddress.sin_addr.s_addr;
+  
+  if (bind(rd, (struct sockaddr*) &bindAddress, sizeof(bindAddress)) == -1) {
+    perror("archtesterd_hops: cannot bind input raw socket ");
+    exit(1);
+  }
+  
   //
   // Create a packet
   //
@@ -356,8 +376,8 @@ archtesterd_runtest(unsigned int startTtl,
   //
   // Wait for response
   //
-
-  if ((receivedPacketLength = archtesterd_receivepacket(sd, &receivedPacket)) > 0) {
+  
+  if ((receivedPacketLength = archtesterd_receivepacket(rd, &receivedPacket)) > 0) {
     
     debugf("archtesterd_hops: debug: received a packet of %u bytes\n", receivedPacketLength);
     
