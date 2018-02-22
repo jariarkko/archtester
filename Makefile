@@ -33,3 +33,6 @@ install:	$(PROGRAMS)
 
 wc:
 	wc -l $(SOURCES)
+
+clean:
+	-rm *~

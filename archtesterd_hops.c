@@ -22,11 +22,19 @@
 #define IP4_HDRLEN		20
 #define ICMP4_HDRLEN		 8
 
+enum algorithms {
+  algorithms_sequential,
+  algorithms_binarysearch
+};
+
+#define algorithms_string "sequential or binarysearch"
+
 //
 // Variables
 //
 
 static int debug = 0;
+static enum algorithms algorithm = algorithms_sequential;
 
 //
 // Finding out an interface index for a named interface
@@ -214,6 +222,45 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
 }
 
 //
+// Send a plain IP packet to raw socket
+//
+
+static void
+archtesterd_sendpacket(int sd,
+		       char* packet,
+		       unsigned int packetLength,
+		       struct sockaddr* addr,
+		       size_t addrLength)  {
+  
+  if (sendto (sd, packet, packetLength, 0, addr, sizeof (struct sockaddr)) < 0) {
+    perror ("archtesterd_hops: sendto() failed ");
+    exit(1);
+  }
+  
+}
+
+//
+// Receive a packet from the raw socket
+//
+
+static int archtesterd_receivepacket(int sd,
+				     char** result) {
+  
+  static char packet[IP_MAXPACKET];
+  struct sockaddr from;
+  socklen_t fromlen;
+  int bytes;
+  
+  if ((bytes = recvfrom (sd, packet, sizeof(packet), 0, (struct sockaddr *) &from, &fromlen)) < 0) {
+    perror ("archtesterd_hops: socket() failed to read from the raw socket ");
+    exit(1);
+  }
+  
+  *result = packet;
+  return(bytes);
+}
+
+//
 // The main program for running a test
 //
 
@@ -225,11 +272,14 @@ archtesterd_runtest(unsigned int startTtl,
   struct sockaddr_in destinationAddress;
   struct sockaddr_in sourceAddress;
   unsigned int packetLength;
+  int receivedPacketLength;
+  char* receivedPacket;
   struct ifreq ifr;
   int hdrison = 1;
   int ttl = startTtl;
   char* packet;
   int ifindex;
+  int bytes;
   int sd;
   
   //
@@ -279,12 +329,19 @@ archtesterd_runtest(unsigned int startTtl,
   //
   // Send the packet
   //
-  
-  if (sendto (sd, packet, packetLength, 0, (struct sockaddr *) &destinationAddress, sizeof (struct sockaddr)) < 0)  {
-    perror ("archtesterd_hops: sendto() failed ");
-    exit(1);
+
+  archtesterd_sendpacket(sd, packet, packetLength, (struct sockaddr *) &destinationAddress, sizeof (struct sockaddr));
+
+  //
+  // Wait for response
+  //
+
+  if ((receivedPacketLength = archtesterd_receivepacket(sd, &receivedPacket)) > 0) {
+    
+    if (debug) printf("archtesterd_hops: debug: received a packet of %u bytes\n", receivedPacketLength);
+    
   }
-  
+
   //
   // Done. Return.
   //
@@ -306,6 +363,17 @@ main(int argc,
       exit(0);
     } else if (strcmp(argv[0],"-d") == 0) {
       debug = 1;
+    } else if (strcmp(argv[0],"-algorithm") == 0 && argc > 1) {
+      if (strcmp(argv[1],"sequential") == 0) {
+	algorithm = algorithms_sequential;
+      } else if (strcmp(argv[1],"binarysearch") == 0) {
+	algorithm = algorithms_binarysearch;
+      } else {
+	fprintf(stderr,"archtesterd_hops: invalid algorithm value %s (expecting %s) -- exit\n",
+		argv[1], algorithms_string);
+	exit(1);
+      }
+      argc--; argv++;
     } else if (strcmp(argv[0],"-i") == 0 && argc > 1) {
       interface = argv[1];
       argc--; argv++;
