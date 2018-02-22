@@ -282,6 +282,60 @@ static int archtesterd_receivepacket(int sd,
 }
 
 //
+// IP & ICMP packet validation
+//
+
+static int
+archtesterd_validatepacket(char* receivedPacket,
+			   int receivedPacketLength) {
+  
+  struct ip iphdr;
+  struct icmp icmphdr;
+
+  //
+  // Validate IP4 header
+  //
+  
+  if (receivedPacketLength < IP4_HDRLEN) return(0);
+  memcpy(&iphdr,receivedPacket,IP4_HDRLEN);
+  if (iphdr.ip_v != 4) return(0);
+  if (ntohs(iphdr.ip_len) < receivedPacketLength) return(0);
+  if (iphdr.ip_off != 0) return(0);
+  if (iphdr.ip_p != IPPROTO_ICMP) return(0);
+  // TODO: check iphdr.ip_sum ...
+  
+  //
+  // Validate ICMP4 header
+  //
+  
+  if (receivedPacketLength < IP4_HDRLEN + ICMP4_HDRLEN) return(0);
+  memcpy(&icmphdr,&receivedPacket[IP4_HDRLEN],ICMP4_HDRLEN);
+  if (icmphdr.icmp_type != ICMP_ECHOREPLY &&
+      icmphdr.icmp_type != ICMP_TIMEEXCEEDED &&
+      icmphdr.icmp_type != ICMP_DEST_UNREACH) return(0);
+  if (icmphdr.icmp_type != ICMP_TIMEEXCEEDED && icmphdr.icmp_code != 0) return(0);
+  // TODO: match icmp_id to what we had sent earlier...
+  // TODO: check icmphdr.icmp_sum ...
+  
+  //
+  // Seems OK
+  //
+  
+  return(1);
+}
+
+//
+// Check that the packet is for this node and tht it is an
+// ICMP packet
+//
+
+static int
+archtesterd_packetisforus(char* receivedPacket,
+			  int receivedPacketLength,
+			  struct sockaddr_in* sourceAddress) {
+}
+
+//
 // The main program for running a test
 //
 
@@ -372,7 +426,7 @@ archtesterd_runtest(unsigned int startTtl,
   //
 
   archtesterd_sendpacket(sd, packet, packetLength, (struct sockaddr *) &destinationAddress, sizeof (struct sockaddr));
-
+  
   //
   // Wait for response
   //
@@ -384,8 +438,23 @@ archtesterd_runtest(unsigned int startTtl,
   }
 
   //
+  // Verify response packet (that it is for us, long enough, etc.)
+  //
+  
+  if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength)) {
+    debugf("archtesterd_hops: debug: invalid packet, ignoring\n");
+  }
+  
+  if (!archtesterd_packetisforus(receivedPacket,receivedPacketLength,&sourceAddress)) {
+    debugf("archtesterd_hops: debug: packet not for us, ignoring\n");
+  }
+  
+  debugf("archtesterd_hops: debug: packet was for us, taking into account\n");
+  
+  //
   // Done. Return.
   //
+    
 }
 
 
