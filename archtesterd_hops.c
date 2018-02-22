@@ -311,9 +311,9 @@ archtesterd_validatepacket(char* receivedPacket,
   if (receivedPacketLength < IP4_HDRLEN + ICMP4_HDRLEN) return(0);
   memcpy(&icmphdr,&receivedPacket[IP4_HDRLEN],ICMP4_HDRLEN);
   if (icmphdr.icmp_type != ICMP_ECHOREPLY &&
-      icmphdr.icmp_type != ICMP_TIMEEXCEEDED &&
+      icmphdr.icmp_type != ICMP_TIME_EXCEEDED &&
       icmphdr.icmp_type != ICMP_DEST_UNREACH) return(0);
-  if (icmphdr.icmp_type != ICMP_TIMEEXCEEDED && icmphdr.icmp_code != 0) return(0);
+  if (icmphdr.icmp_type != ICMP_TIME_EXCEEDED && icmphdr.icmp_code != 0) return(0);
   // TODO: match icmp_id to what we had sent earlier...
   // TODO: check icmphdr.icmp_sum ...
   
