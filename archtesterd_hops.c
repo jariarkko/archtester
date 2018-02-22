@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -35,6 +36,24 @@ enum algorithms {
 
 static int debug = 0;
 static enum algorithms algorithm = algorithms_sequential;
+
+//
+// Debug helper function
+//
+
+static void
+debugf(const char* format, ...) {
+  
+  if (debug) {
+    
+    va_list args;
+    va_start (args, format);
+    vprintf(f, format, args);
+    va_end (args);
+
+  }
+  
+}
 
 //
 // Finding out an interface index for a named interface
@@ -210,8 +229,8 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   //
   // Debugs
   //
-
-  if (debug) printf("archtesterd_hops: debug: constructed a packet of %u bytes, ttl = %u\n", packetLength, ttl);
+  
+  debugf("archtesterd_hops: debug: constructed a packet of %u bytes, ttl = %u\n", packetLength, ttl);
   
   //
   // Return the packet
@@ -250,6 +269,8 @@ static int archtesterd_receivepacket(int sd,
   struct sockaddr from;
   socklen_t fromlen;
   int bytes;
+
+  debugf("archtesterd_hops: debug: waiting for responses\n");
   
   if ((bytes = recvfrom (sd, packet, sizeof(packet), 0, (struct sockaddr *) &from, &fromlen)) < 0) {
     perror ("archtesterd_hops: socket() failed to read from the raw socket ");
@@ -293,9 +314,9 @@ archtesterd_runtest(unsigned int startTtl,
   // Debugs
   //
   
-  if (debug) printf("archtesterd_hops: debug: ifindex = %d\n", ifindex);
-  if (debug) printf("archtesterd_hops: debug: source = %s\n", archtesterd_iptostring(&sourceAddress));
-  if (debug) printf("archtesterd_hops: debug: destination = %s\n", archtesterd_iptostring(&destinationAddress));
+  debugf("archtesterd_hops: debug: ifindex = %d\n", ifindex);
+  debugf("archtesterd_hops: debug: source = %s\n", archtesterd_iptostring(&sourceAddress));
+  debugf("archtesterd_hops: debug: destination = %s\n", archtesterd_iptostring(&destinationAddress));
     
   //
   // Get a raw socket
@@ -338,7 +359,7 @@ archtesterd_runtest(unsigned int startTtl,
 
   if ((receivedPacketLength = archtesterd_receivepacket(sd, &receivedPacket)) > 0) {
     
-    if (debug) printf("archtesterd_hops: debug: received a packet of %u bytes\n", receivedPacketLength);
+    debugf("archtesterd_hops: debug: received a packet of %u bytes\n", receivedPacketLength);
     
   }
 
