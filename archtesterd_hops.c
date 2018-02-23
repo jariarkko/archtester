@@ -28,6 +28,7 @@ enum archtesterd_algorithms {
 
 enum archtesterd_responseType {
   archtesterd_responseType_echoResponse,
+  archtesterd_responseType_destinationUnreachable,
   archtesterd_responseType_timeExceeded
 };
 
@@ -631,11 +632,13 @@ archtesterd_reportStats() {
   unsigned int nProbes = 0;
   unsigned int nResponses = 0;
   unsigned int nEchoReplies = 0;
+  unsigned int nDestinationUnreachables = 0;
   unsigned int nTimeExceededs = 0;
   unsigned int hopsused[256];
   unsigned int id;
   unsigned long shortestDelay = 0xffffffff;
   unsigned long longestDelay = 0;
+  int seenttl;
   
   memset(hopsused,0,sizeof(hopsused));
   for (id = 0; id < ARCHTESTERD_MAX_PROBES; id++) {
@@ -651,6 +654,9 @@ archtesterd_reportStats() {
 	case archtesterd_responseType_echoResponse:
 	  nEchoReplies++;
 	  break;
+	case archtesterd_responseType_destinationUnreachable:
+	  nDestinationUnreachables++;
+	  break;
 	case archtesterd_responseType_timeExceeded:
 	  nTimeExceededs++;
 	  break;
@@ -664,8 +670,22 @@ archtesterd_reportStats() {
   printf("\n");
   printf("Statistics:\n");
   printf("  %4u    probes sent out\n", nProbes);
+  printf("         on TTLs: ");
+  seenttl = 0;
+  for (ttl = 0; ttl < 256; ttl++) {
+    if (hopsused[ttl]) {
+      if (seenttl) printf(", ");
+      printf("%u", ttl);
+      if (hopsused[ttl] > 1) {
+	printf(" (%u times)", hopsused[ttl]);
+      }
+      seenttl = 1;
+    }
+  }
+  printf("\n");
   printf("  %4u    responses received\n", nResponses);
   printf("  %4u    echo replies received\n", nEchoReplies);
+  printf("  %4u    destination unreachable errors received\n", nDestinationUnreachables);
   printf("  %4u    time exceeded errors received\n", nTimeExceededs);
   if (nResponses > 0) {
     printf("  %10.4f shortest response delay\n", ((float)shortestDelay / 1000.0));
