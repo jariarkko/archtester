@@ -64,6 +64,7 @@ struct archtesterd_probe {
 //
 
 static int debug = 0;
+static int progress = 1;
 static int statistics = 0;
 static unsigned int maxTtl = 255;
 static unsigned int maxProbes = 50;
@@ -227,7 +228,8 @@ archtesterd_findprobe(archtesterd_idtype id) {
 static void
 archtesterd_registerResponse(enum archtesterd_responseType type,
 			     archtesterd_idtype id,
-			     unsigned int packetLength) {
+			     unsigned int packetLength,
+			     struct archtesterd_probe** responseToProbe) {
 
   //
   // See if we can find the probe that this is a response to
@@ -236,6 +238,7 @@ archtesterd_registerResponse(enum archtesterd_responseType type,
   struct archtesterd_probe* probe = archtesterd_findprobe(id);
   if (probe == 0) {
     debugf("cannot find the probe that response id %u was a response to", id);
+    *responseToProbe = 0;
     return;
   }
 
@@ -245,6 +248,7 @@ archtesterd_registerResponse(enum archtesterd_responseType type,
 
   if (probe->responded) {
     debugf("we have already seen a response to probe id %u", id);
+    *responseToProbe = probe;
     return;
   }
   
@@ -275,6 +279,12 @@ archtesterd_registerResponse(enum archtesterd_responseType type,
     hopsMin = probe->hops + 1;
     debugf("time exceeded means hops is at least %u", hopsMin);
   }
+
+  //
+  // Return, and set output parameters
+  //
+  
+  *responseToProbe = probe;
 }
 
 //
@@ -689,6 +699,45 @@ archtesterd_packetisforus(char* receivedPacket,
 }
 
 //
+// Reporting progress: sent
+//
+
+static void
+archtesterd_reportprogress_sent(archtesterd_idtype id,
+				unsigned char ttl) {
+  if (progress) {
+    printf("ECHO %u (TTL %u)...", id, ttl);
+  }
+}
+
+//
+// Reporting progress: received
+//
+
+static void
+archtesterd_reportprogress_received(enum archtesterd_responseType responseType,
+				    archtesterd_idtype id,
+				    unsigned char ttl) {
+  
+  if (progress) {
+    switch (responseType) {
+    case archtesterd_responseType_echoResponse:
+      printf(" <--- REPLY %u\n", id);
+      break;
+    case archtesterd_responseType_destinationUnreachable:
+      printf(" <--- UNREACH %u\n", id);
+      break;
+    case archtesterd_responseType_timeExceeded:
+      printf(" <--- TTL EXPIRED %u\n", id);
+      break;
+    default:
+      fatalf("invalid response type");
+    }
+  }
+  
+}
+
+//
 // Can and should we continue the probing?
 //
 
@@ -711,6 +760,7 @@ archtesterd_probingprocess(int sd,
 			   unsigned int startTtl) {
   
   enum archtesterd_responseType responseType;
+  struct archtesterd_probe* responseToProbe;
   struct archtesterd_probe* probe;
   unsigned int packetLength;
   archtesterd_idtype responseId;
@@ -790,6 +840,7 @@ archtesterd_probingprocess(int sd,
 			   packet,
 			   packetLength, (struct sockaddr *)destinationAddress,
 			   sizeof (struct sockaddr));
+    archtesterd_reportprogress_sent(id,ttl);
     
     //
     // Wait for response
@@ -832,7 +883,10 @@ archtesterd_probingprocess(int sd,
       // Register the response into our own database
       //
       
-      archtesterd_registerResponse(responseType, responseId, receivedPacketLength);
+      archtesterd_registerResponse(responseType, responseId, receivedPacketLength, &responseToProbe);
+      archtesterd_reportprogress_received(responseType,
+					  responseId,
+					  responseToProbe != 0 ? 0 : responseToProbe->hops);
       
     }
     
@@ -1017,6 +1071,8 @@ main(int argc,
     if (strcmp(argv[0],"-v") == 0) {
       printf("version 0.2\n");
       exit(0);
+    } else if (strcmp(argv[0],"-q") == 0) {
+      progress = 0;
     } else if (strcmp(argv[0],"-d") == 0) {
       debug = 1;
     } else if (strcmp(argv[0],"-y") == 0) {
@@ -1047,9 +1103,9 @@ main(int argc,
     } else if (strcmp(argv[0],"-i") == 0 && argc > 1) {
       interface = argv[1];
       argc--; argv++;
-    } else if (strcmp(argv[0],"-startttl") == 0 && argc > 1) {
+    } else if (strcmp(argv[0],"-startttl") == 0 && argc > 1 && isdigit(argv[1][0])) {
       startTtl = atoi(argv[1]);
-      if (startTtl <= 0) {
+      if (startTtl > 255) {
 	fatalf("invalid TTL value");
       }
       argc--; argv++;
