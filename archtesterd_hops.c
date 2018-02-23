@@ -534,7 +534,9 @@ static int
 archtesterd_validatepacket(char* receivedPacket,
 			   int receivedPacketLength,
 			   enum archtesterd_responseType* responseType,
-			   unsigned char* responseId) {
+			   unsigned char* responseId,
+			   struct ip* responseToIpHdr,
+			   struct icmp* responseToIcmpHdr) {
   
   struct ip iphdr;
   struct icmp icmphdr;
@@ -549,6 +551,7 @@ archtesterd_validatepacket(char* receivedPacket,
   if (ntohs(iphdr.ip_len) < receivedPacketLength) return(0);
   if (iphdr.ip_off != 0) return(0);
   if (iphdr.ip_p != IPPROTO_ICMP) return(0);
+  *responseId = iphdr.ip_id;
   // TODO: check iphdr.ip_sum ...
   
   //
@@ -562,28 +565,65 @@ archtesterd_validatepacket(char* receivedPacket,
   // TODO: check icmphdr.icmp_sum ...
 
   switch (icmphdr.icmp_type) {
+
   case ICMP_ECHOREPLY:
     *responseType = archtesterd_responseType_echoResponse;
     debugf("ECHO RESPONSE from %s", archtesterd_addrtostring(&iphdr.ip_src));
     break;
+
   case ICMP_TIME_EXCEEDED:
+    if (icmphdr.icmp_code != 0) {
+      debugf("ICMP code in TIME EXCEEDED is not 0");
+      return(0);
+    }
+    if (ntohs(iphdr.ip_len) < IP4_HDRLEN + ICMP4_HDRLEN + IP4_HDRLEN + ICMP4_HDRLEN) {
+      debugf("ICMP error does not include enough of the original packet", ntohs(iphdr.ip_len));
+      return(0);
+    }
+    memcpy(responseToIpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN],IP4_HDRLEN);
+    memcpy(responseToIcmpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN+IP4_HDRLEN],ICMP4_HDRLEN);
+    *responseId = responseToIpHdr->ip_id;
+    debugf("using inner id %u in ICMP error", *responseId);
+    if (responseToIpHdr->ip_p != IPPROTO_ICMP &&
+	responseToIcmpHdr->icmp_type != IPPROTO_ECHO) {
+      debugf("ICMP error includes some other packet than ICMP ECHO proto = %u icmp code = %u",
+	     responseToIpHdr->ip_p,
+	     responseToIcmpHdr->icmp_type);
+      return(0);
+    }
     *responseType = archtesterd_responseType_timeExceeded;
-    if (icmphdr.icmp_code != 0) return(0);
     debugf("TIME EXCEEDED from %s", archtesterd_addrtostring(&iphdr.ip_src));
     break;
+
   case ICMP_DEST_UNREACH:
+    if (ntohs(iphdr.ip_len) < IP4_HDRLEN + ICMP4_HDRLEN + IP4_HDRLEN + ICMP4_HDRLEN) {
+      debugf("ICMP error does not include enough of the original packet", ntohs(iphdr.ip_len));
+      return(0);
+    }
+    memcpy(responseToIpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN],IP4_HDRLEN);
+    memcpy(responseToIcmpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN+IP4_HDRLEN],ICMP4_HDRLEN);
+    *responseId = responseToIpHdr->ip_id;
+    debugf("using inner id %u in ICMP error", *responseId);
+    if (responseToIpHdr->ip_p != IPPROTO_ICMP &&
+	responseToIcmpHdr->icmp_type != IPPROTO_ECHO) {
+      debugf("ICMP error includes some other packet than ICMP ECHO proto = %u icmp code = %u",
+	     responseToIpHdr->ip_p,
+	     responseToIcmpHdr->icmp_type);
+      return(0);
+    }
     *responseType = archtesterd_responseType_destinationUnreachable;
     debugf("DESTINATION UNREACHABLE from %s", archtesterd_addrtostring(&iphdr.ip_src));
     break;
+    
   default:
     return(0);
+    
   }
   
   //
   // Seems OK
   //
   
-  *responseId = iphdr.ip_id;
   return(1);
 }
 
@@ -595,11 +635,41 @@ archtesterd_validatepacket(char* receivedPacket,
 static int
 archtesterd_packetisforus(char* receivedPacket,
 			  int receivedPacketLength,
-			  struct sockaddr_in* sourceAddress) {
+			  enum archtesterd_responseType receivedResponseType,
+			  struct sockaddr_in* sourceAddress,
+			  struct sockaddr_in* destinationAddress,
+			  struct ip* responseToIpHdr,
+			  struct icmp* responseToIcmpHdr) {
+  
   struct ip iphdr;
+
+  //
+  // Check the destination is our source address
+  //
   
   memcpy(&iphdr,receivedPacket,IP4_HDRLEN);
   if (memcmp(&iphdr.ip_dst,&sourceAddress->sin_addr,sizeof(iphdr.ip_dst)) != 0) return(0);
+  
+  //
+  // For ICMP error messages, we've already checked that the included
+  // packet was an ICMP ECHO.  Now we need to additionally verify that
+  // it was one sent from us to the destination.
+  //
+  
+  if (receivedResponseType == archtesterd_responseType_destinationUnreachable ||
+      receivedResponseType == archtesterd_responseType_timeExceeded) {
+    
+    debugf("checking that inner packet in the ICMP error was sent by us");
+    if (memcmp(&responseToIpHdr->ip_src,&sourceAddress->sin_addr,sizeof(responseToIpHdr->ip_src)) != 0) return(0);
+    debugf("checking that inner packet in the ICMP error was sent to the destination we are testing");
+    if (memcmp(&responseToIpHdr->ip_dst,&destinationAddress->sin_addr,sizeof(responseToIpHdr->ip_dst)) != 0) return(0);
+    debugf("inner packet checks ok");
+    
+  }
+  
+  //
+  // Looks like it is for us
+  //
   
   return(1);
 }
@@ -653,6 +723,9 @@ archtesterd_probingprocess(int sd,
   //
 
   while (archtesterd_shouldcontinue()) {
+
+    struct ip responseToIpHdr;
+    struct icmp responseToIcmpHdr;
 
     //
     // Depending on algorithm, adjust behaviour
@@ -718,11 +791,22 @@ archtesterd_probingprocess(int sd,
     // Verify response packet (that it is for us, long enough, etc.)
     //
     
-    if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength,&responseType,&responseId)) {
+    if (!archtesterd_validatepacket(receivedPacket,
+				    receivedPacketLength,
+				    &responseType,
+				    &responseId,
+				    &responseToIpHdr,
+				    &responseToIcmpHdr)) {
       
       debugf("invalid packet, ignoring");
       
-    } else if (!archtesterd_packetisforus(receivedPacket,receivedPacketLength,sourceAddress)) {
+    } else if (!archtesterd_packetisforus(receivedPacket,
+					  receivedPacketLength,
+					  responseType,
+					  sourceAddress,
+					  destinationAddress,
+					  &responseToIpHdr,
+					  &responseToIcmpHdr)) {
       
       debugf("packet not for us, ignoring");
       
