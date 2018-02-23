@@ -260,6 +260,19 @@ archtesterd_registerResponse(enum archtesterd_responseType type,
 						  &probe->sentTime);
   debugf("probe delay was %.3f ms", probe->delayUSecs / 1000.0);
   probe->responseType = type;
+
+  //
+  // Update our conclusions about the destination
+  //
+  
+  if (type == archtesterd_responseType_echoResponse) {
+    hopsMax = probe->hops;
+    debugf("echo reply means hops is at most %u", hopsMax);
+  }
+  if (type == archtesterd_responseType_timeExceeded) {
+    hopsMin = probe->hops + 1;
+    debugf("time exceeded means hops is at least %u", hopsMin);
+  }
 }
 
 //
