@@ -706,7 +706,7 @@ static void
 archtesterd_reportprogress_sent(archtesterd_idtype id,
 				unsigned char ttl) {
   if (progress) {
-    printf("ECHO %u (TTL %u)...", id, ttl);
+    printf("ECHO #%u (TTL %u)...", id, ttl);
   }
 }
 
@@ -722,17 +722,32 @@ archtesterd_reportprogress_received(enum archtesterd_responseType responseType,
   if (progress) {
     switch (responseType) {
     case archtesterd_responseType_echoResponse:
-      printf(" <--- REPLY %u\n", id);
+      printf(" <--- #%u REPLY\n", id);
       break;
     case archtesterd_responseType_destinationUnreachable:
-      printf(" <--- UNREACH %u\n", id);
+      printf(" <--- #%u UNREACH\n", id);
       break;
     case archtesterd_responseType_timeExceeded:
-      printf(" <--- TTL EXPIRED %u\n", id);
+      printf(" <--- #%u TTL EXPIRED\n", id);
       break;
     default:
       fatalf("invalid response type");
     }
+  }
+  
+}
+
+//
+// Reporting progress: received other
+//
+
+static void
+archtesterd_reportprogress_received(enum archtesterd_responseType responseType,
+				    archtesterd_idtype id,
+				    unsigned char ttl) {
+  
+  if (progress) {
+    printf(" <--- OTHER\n");
   }
   
 }
