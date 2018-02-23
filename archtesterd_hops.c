@@ -64,9 +64,13 @@ struct archtesterd_probe {
 static int debug = 0;
 static int statistics = 0;
 static unsigned int maxTtl = 255;
+static unsigned int maxProbes = 50;
 static unsigned int icmpDataLength = 10;
 static enum archtesterd_algorithms algorithm = archtesterd_algorithms_sequential;
 static struct archtesterd_probe probes[ARCHTESTERD_MAX_PROBES];
+static unsigned int probesSent = 0;
+static int hopsMin = -1;
+static int hopsMax = 255;
 
 //
 // Debug helper function
@@ -196,6 +200,8 @@ archtesterd_newprobe(char id,
   }
   
   debugf("registered a probe for id %u, ttl %u", id, hops);
+  
+  probesSent++;
   return(probe);
 }
 
@@ -586,7 +592,145 @@ archtesterd_packetisforus(char* receivedPacket,
 }
 
 //
-// The main program for running a test
+// Can and should we continue the probing?
+//
+
+static int
+archtesterd_shouldcontinue() {
+  if (probesSent >= maxProbes) return(0);
+  if (hopsMin == hopsMax) return(0);
+  return(1);
+}
+  
+//
+// The test main loop
+//
+
+static void
+archtesterd_probingprocess(int sd,
+			   int rd,
+			   struct sockaddr_in* destinationAddress,
+			   struct sockaddr_in* sourceAddress,
+			   unsigned int startTtl) {
+  
+  enum archtesterd_responseType responseType;
+  struct archtesterd_probe* probe;
+  unsigned int packetLength;
+  unsigned char responseId;
+  unsigned int expectedLen;
+  int receivedPacketLength;
+  char* receivedPacket;
+  unsigned char ttl;
+  unsigned char id;
+  char* packet;
+  
+  //
+  // Adjust TTL if needed
+  //
+  
+  debugf("startTtl %u, maxTtl %u", startTtl, maxTtl);
+  if (startTtl > maxTtl) {
+    startTtl = maxTtl;
+    debugf("reset startTtl to %u", startTtl);
+  }
+  ttl = startTtl;
+
+  //
+  // Loop
+  //
+
+  while (archtesterd_shouldcontinue()) {
+
+    //
+    // Depending on algorithm, adjust behaviour
+    //
+
+    switch (algorithm) {
+    case archtesterd_algorithms_random:
+      ttl = hopsMin + 1 + (rand() % (hopsMax - hopsMin - 1));
+      debugf("selected a random ttl %u in range %u..%u", ttl, hopsMin+1, hopsMax);
+      break;
+    case archtesterd_algorithms_sequential:
+      if (probesSent > 0) ttl++;
+      debugf("selected one larger ttl %u", ttl);
+      break;
+    case archtesterd_algorithms_binarysearch:
+      fatalf("binary search not implemented yet");
+    default:
+      fatalf("invalid internal algorithm identifier");
+    }
+    
+    //
+    // Create a packet
+    //
+    
+    id = archtesterd_getnewid(ttl);
+    expectedLen = IP4_HDRLEN + ICMP4_HDRLEN + icmpDataLength;
+    probe = archtesterd_newprobe(id,ttl,expectedLen);
+    if (probe == 0) {
+      fatalf("cannot allocate a new probe entry");
+    }
+    archtesterd_constructicmp4packet(sourceAddress,
+				     destinationAddress,
+				     id,
+				     ttl,
+				     icmpDataLength,
+				     &packet,
+				     &packetLength);
+    if (expectedLen != packetLength) {
+      fatalf("expected and resulting packet lengths do not agree (%u vs. %u)",
+	     expectedLen, packetLength);
+    }
+    
+    //
+    // Send the packet
+    //
+    
+    archtesterd_sendpacket(sd,
+			   packet,
+			   packetLength, (struct sockaddr *)destinationAddress,
+			   sizeof (struct sockaddr));
+    
+    //
+    // Wait for response
+    //
+    
+    if ((receivedPacketLength = archtesterd_receivepacket(rd, &receivedPacket)) > 0) {
+      
+      debugf("received a packet of %u bytes", receivedPacketLength);
+      
+    }
+    
+    //
+    // Verify response packet (that it is for us, long enough, etc.)
+    //
+    
+    if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength,&responseType,&responseId)) {
+      
+      debugf("invalid packet, ignoring");
+      
+    } else if (!archtesterd_packetisforus(receivedPacket,receivedPacketLength,sourceAddress)) {
+      
+      debugf("packet not for us, ignoring");
+      
+    } else {
+      
+      debugf("packet was for us, taking into account");
+      
+      //
+      // Register the response into our own database
+      //
+      
+      archtesterd_registerResponse(responseType, responseId, receivedPacketLength);
+      
+    }
+    
+  }
+  
+}
+
+//
+// The main program for starting a test
 //
 
 static void
@@ -594,36 +738,14 @@ archtesterd_runtest(unsigned int startTtl,
 		    const char* interface,
 		    const char* destination) {
 
-  enum archtesterd_responseType responseType;
   struct sockaddr_in destinationAddress;
   struct sockaddr_in sourceAddress;
-  struct archtesterd_probe* probe;
   struct sockaddr_in bindAddress;
-  unsigned char ttl;
-  unsigned int packetLength;
-  unsigned int expectedLen;
-  unsigned char responseId;
-  int receivedPacketLength;
-  char* receivedPacket;
-  unsigned char id;
   struct ifreq ifr;
   int hdrison = 1;
-  char* packet;
   int ifindex;
-  int bytes;
   int sd;
   int rd;
-
-  //
-  // Adjust TTL if needed
-  //
-
-  debugf("startTtl %u, maxTtl %u", startTtl, maxTtl);
-  if (startTtl > maxTtl) {
-    startTtl = maxTtl;
-    debugf("reset startTtl to %u", startTtl);
-  }
-  ttl = startTtl;
   
   //
   // Find out ifindex, own address, destination address
@@ -671,67 +793,12 @@ archtesterd_runtest(unsigned int startTtl,
   if (bind(rd, (struct sockaddr*) &bindAddress, sizeof(bindAddress)) == -1) {
     fatalp("cannot bind input raw socket");
   }
-  
-  //
-  // Create a packet
-  //
-  
-  id = archtesterd_getnewid(ttl);
-  expectedLen = IP4_HDRLEN + ICMP4_HDRLEN + icmpDataLength;
-  probe = archtesterd_newprobe(id,ttl,expectedLen);
-  if (probe == 0) {
-    fatalf("cannot allocate a new probe entry");
-  }
-  archtesterd_constructicmp4packet(&sourceAddress,
-				   &destinationAddress,
-				   id,
-				   ttl,
-				   icmpDataLength,
-				   &packet,
-				   &packetLength);
-  if (expectedLen != packetLength) {
-    fatalf("expected and resulting packet lengths do not agree (%u vs. %u)", expectedLen, packetLength);
-  }
-  
-  //
-  // Send the packet
-  //
-  
-  archtesterd_sendpacket(sd, packet, packetLength, (struct sockaddr *) &destinationAddress, sizeof (struct sockaddr));
-  
-  //
-  // Wait for response
-  //
-  
-  if ((receivedPacketLength = archtesterd_receivepacket(rd, &receivedPacket)) > 0) {
-    
-    debugf("received a packet of %u bytes", receivedPacketLength);
-    
-  }
 
   //
-  // Verify response packet (that it is for us, long enough, etc.)
+  // Start the main loop
   //
   
-  if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength,&responseType,&responseId)) {
-    
-    debugf("invalid packet, ignoring");
-    
-  } else if (!archtesterd_packetisforus(receivedPacket,receivedPacketLength,&sourceAddress)) {
-    
-    debugf("packet not for us, ignoring");
-    
-  } else {
-    
-    debugf("packet was for us, taking into account");
-    
-    //
-    // Register the response into our own database
-    //
-    
-    archtesterd_registerResponse(responseType, responseId, receivedPacketLength);
-    
-  }
+  archtesterd_probingprocess(sd,rd,&destinationAddress,&sourceAddress,startTtl);
   
   //
   // Done. Return.
@@ -823,6 +890,16 @@ main(int argc,
   const char* testDestination = "www.google.com";
   const char* interface = "eth0";
   unsigned int startTtl = 10;
+
+  //
+  // Initialize
+  //
+  
+  srand(time(0));
+  
+  //
+  // Process arguments
+  //
   
   argc--; argv++;
   while (argc > 0) {
@@ -839,6 +916,10 @@ main(int argc,
     } else if (strcmp(argv[0],"-maxttl") == 0 && argc > 1 && isdigit(argv[1][0])) {
       maxTtl = atoi(argv[1]);
       debugf("maxTtl set to %u", maxTtl);
+      argc--; argv++;
+    } else if (strcmp(argv[0],"-maxprobes") == 0 && argc > 1 && isdigit(argv[1][0])) {
+      maxProbes = atoi(argv[1]);
+      debugf("maxProbes set to %u", maxProbes);
       argc--; argv++;
     } else if (strcmp(argv[0],"-algorithm") == 0 && argc > 1) {
       if (strcmp(argv[1],"random") == 0) {
