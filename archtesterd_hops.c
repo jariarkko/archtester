@@ -866,7 +866,7 @@ archtesterd_sendprobes(int sd,
     switch (algorithm) {
     case archtesterd_algorithms_random:
       debugf("before random selection, min = %u and max = %u", hopsMin, hopsMax);
-      currentTtl = hopsMin + 1 + (rand() % (hopsMax - hopsMin - 1));
+      currentTtl = hopsMin + 1 + (rand() % (hopsMax - hopsMin));
       debugf("selected a random ttl %u in range %u..%u", currentTtl, hopsMin+1, hopsMax);
       break;
     case archtesterd_algorithms_sequential:
