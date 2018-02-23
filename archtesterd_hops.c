@@ -1156,7 +1156,10 @@ archtesterd_reportConclusion() {
   } else if (hopsMin == -1 && hopsMax >= maxTtl) {
     printf("%s is unknown hops away", testDestination);
   } else {
-    printf("%s is between %u and %u hops away", testDestination, hopsMin, hopsMax);
+    printf("%s is between %u and %u hops away",
+	   testDestination,
+	   hopsMin == -1 ? 0 : hopsMin,
+	   hopsMax);
   }
   
   if (repl == 0 && unreach > 0) {
@@ -1164,7 +1167,7 @@ archtesterd_reportConclusion() {
   } else if (repl > 0 && unreach > 0) {
     printf(" and reachable, but also gives reachability errors\n");
   } else if (repl > 0 && unreach == 0) {
-    printf("and reachable\n");
+    printf(" and reachable\n");
   } else if (exc > 0) {
     printf(", not sure if it is reachable\n");
   } else {
