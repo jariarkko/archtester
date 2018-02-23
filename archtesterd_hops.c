@@ -618,7 +618,7 @@ archtesterd_runtest(unsigned int startTtl,
   // Adjust TTL if needed
   //
   
-  if (startTtl < maxTtl) startTtl = maxTtl;
+  if (startTtl > maxTtl) startTtl = maxTtl;
   
   //
   // Find out ifindex, own address, destination address
@@ -806,8 +806,8 @@ archtesterd_reportStats() {
   printf("  %8u    destination unreachable errors received\n", nDestinationUnreachables);
   printf("  %8u    time exceeded errors received\n", nTimeExceededs);
   if (nResponses > 0) {
-    printf("%10.4f shortest response delay\n", ((float)shortestDelay / 1000.0));
-    printf("%10.4f longest response delay\n", ((float)longestDelay / 1000.0));
+    printf("%10.4f    shortest response delay (ms)\n", ((float)shortestDelay / 1000.0));
+    printf("%10.4f    longest response delay (ms)\n", ((float)longestDelay / 1000.0));
   }
 }
 
