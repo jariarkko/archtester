@@ -585,6 +585,13 @@ archtesterd_validatepacket(char* receivedPacket,
     memcpy(responseToIpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN],IP4_HDRLEN);
     memcpy(responseToIcmpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN+IP4_HDRLEN],ICMP4_HDRLEN);
     *responseId = responseToIpHdr->ip_id;
+    debugf("inner header as seen by archtesterd_validatepacket:");
+    debugf("  inner ip proto = %u", responseToIpHdr->ip_p);
+    debugf("  inner ip len = %u", ntohs(responseToIpHdr->ip_len));
+    debugf("  inner ip id = %u", responseToIpHdr->ip_id);
+    debugf("  inner ip offset = %u", responseToIpHdr->ip_off);
+    debugf("  inner icmp type = %u", responseToIcmpHdr->icmp_type);
+    debugf("  inner icmp code = %u", responseToIcmpHdr->icmp_code);
     debugf("using inner id %u in ICMP error", *responseId);
     if (responseToIpHdr->ip_p != IPPROTO_ICMP &&
 	responseToIcmpHdr->icmp_type != ICMP_ECHO) {
