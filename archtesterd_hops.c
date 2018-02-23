@@ -619,7 +619,10 @@ archtesterd_runtest(unsigned int startTtl,
   //
 
   debugf("startTtl %u, maxTtl %u", startTtl, maxTtl);
-  if (startTtl > maxTtl) startTtl = maxTtl;
+  if (startTtl > maxTtl) {
+    startTtl = maxTtl;
+    debugf("reset startTtl to %u", startTtl);
+  }
   
   //
   // Find out ifindex, own address, destination address
