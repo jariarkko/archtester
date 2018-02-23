@@ -553,7 +553,6 @@ archtesterd_validatepacket(char* receivedPacket,
   if (ntohs(iphdr.ip_len) < receivedPacketLength) return(0);
   if (iphdr.ip_off != 0) return(0);
   if (iphdr.ip_p != IPPROTO_ICMP) return(0);
-  *responseId = iphdr.ip_id;
   // TODO: check iphdr.ip_sum ...
   
   //
@@ -562,8 +561,8 @@ archtesterd_validatepacket(char* receivedPacket,
   
   if (receivedPacketLength < IP4_HDRLEN + ICMP4_HDRLEN) return(0);
   memcpy(&icmphdr,&receivedPacket[IP4_HDRLEN],ICMP4_HDRLEN);
-
-  // TODO: match icmp_id to what we had sent earlier...
+  *responseId = icmphdr.icmp_id;
+  
   // TODO: check icmphdr.icmp_sum ...
 
   switch (icmphdr.icmp_type) {
@@ -584,7 +583,7 @@ archtesterd_validatepacket(char* receivedPacket,
     }
     memcpy(responseToIpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN],IP4_HDRLEN);
     memcpy(responseToIcmpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN+IP4_HDRLEN],ICMP4_HDRLEN);
-    *responseId = responseToIpHdr->ip_id;
+    *responseId = responseToIcmpHdr->icmp_id;
     debugf("inner header as seen by archtesterd_validatepacket:");
     debugf("  inner ip proto = %u", responseToIpHdr->ip_p);
     debugf("  inner ip len = %u", ntohs(responseToIpHdr->ip_len));
@@ -611,7 +610,7 @@ archtesterd_validatepacket(char* receivedPacket,
     }
     memcpy(responseToIpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN],IP4_HDRLEN);
     memcpy(responseToIcmpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN+IP4_HDRLEN],ICMP4_HDRLEN);
-    *responseId = responseToIpHdr->ip_id;
+    *responseId = responseToIcmpHdr->icmp_id;
     debugf("using inner id %u in ICMP error", *responseId);
     if (responseToIpHdr->ip_p != IPPROTO_ICMP &&
 	responseToIcmpHdr->icmp_type != ICMP_ECHO) {
