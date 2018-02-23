@@ -638,6 +638,7 @@ archtesterd_reportStats() {
   unsigned int id;
   unsigned long shortestDelay = 0xffffffff;
   unsigned long longestDelay = 0;
+  unsigned int ttl;
   int seenttl;
   
   memset(hopsused,0,sizeof(hopsused));
