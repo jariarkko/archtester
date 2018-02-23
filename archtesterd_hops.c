@@ -63,6 +63,7 @@ struct archtesterd_probe {
 
 static int debug = 0;
 static int statistics = 0;
+static unsigned int maxTtl = 255;
 static unsigned int icmpDataLength = 10;
 static enum archtesterd_algorithms algorithm = archtesterd_algorithms_sequential;
 static struct archtesterd_probe probes[ARCHTESTERD_MAX_PROBES];
@@ -203,7 +204,7 @@ archtesterd_findprobe(unsigned char id) {
   
   struct archtesterd_probe* probe = &probes[id];
   
-  if (probe->used) {
+  if (!probe->used) {
     debugf("have not sent a probe with id %u", (unsigned int)id);
     return(0);
   } else if (probe->responded) {
@@ -612,6 +613,12 @@ archtesterd_runtest(unsigned int startTtl,
   int bytes;
   int sd;
   int rd;
+
+  //
+  // Adjust TTL if needed
+  //
+  
+  if (startTtl < maxTtl) startTtl = maxTtl;
   
   //
   // Find out ifindex, own address, destination address
@@ -823,6 +830,9 @@ main(int argc,
       statistics = 1;
     } else if (strcmp(argv[0],"-s") == 0 && argc > 1 && isdigit(argv[1][0])) {
       icmpDataLength = atoi(argv[1]);
+      argc--; argv++;
+    } else if (strcmp(argv[0],"-maxttl") == 0 && argc > 1 && isdigit(argv[1][0])) {
+      maxTtl = atoi(argv[1]);
       argc--; argv++;
     } else if (strcmp(argv[0],"-algorithm") == 0 && argc > 1) {
       if (strcmp(argv[1],"random") == 0) {
