@@ -213,7 +213,7 @@ archtesterd_addrtostring(struct in_addr* addr) {
 //
 
 struct archtesterd_probe*
-archtesterd_newprobe(char id,
+archtesterd_newprobe(archtesterd_idtype id,
 		     unsigned char hops,
 		     unsigned int probeLength) {
   
