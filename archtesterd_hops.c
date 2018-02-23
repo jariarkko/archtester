@@ -22,6 +22,7 @@
 //
 
 enum archtesterd_algorithms {
+  archtesterd_algorithms_random,
   archtesterd_algorithms_sequential,
   archtesterd_algorithms_binarysearch
 };
@@ -52,7 +53,7 @@ struct archtesterd_probe {
 #define IP4_HDRLEN			20
 #define ICMP4_HDRLEN			 8
 
-#define archtesterd_algorithms_string	"sequential or binarysearch"
+#define archtesterd_algorithms_string	"random, sequential, or binarysearch"
 
 #define ARCHTESTERD_MAX_PROBES	       256
 
@@ -193,6 +194,7 @@ archtesterd_newprobe(char id,
     fatalp("cannot determine current time via gettimeofday");
   }
   
+  debugf("registered a probe for id %u, ttl %u", id, hops);
   return(probe);
 }
 
@@ -823,7 +825,9 @@ main(int argc,
       icmpDataLength = atoi(argv[1]);
       argc--; argv++;
     } else if (strcmp(argv[0],"-algorithm") == 0 && argc > 1) {
-      if (strcmp(argv[1],"sequential") == 0) {
+      if (strcmp(argv[1],"random") == 0) {
+	algorithm = archtesterd_algorithms_random;
+      } else if (strcmp(argv[1],"sequential") == 0) {
 	algorithm = archtesterd_algorithms_sequential;
       } else if (strcmp(argv[1],"binarysearch") == 0) {
 	algorithm = archtesterd_algorithms_binarysearch;
