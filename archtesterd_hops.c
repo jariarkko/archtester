@@ -742,9 +742,7 @@ archtesterd_reportprogress_received(enum archtesterd_responseType responseType,
 //
 
 static void
-archtesterd_reportprogress_received(enum archtesterd_responseType responseType,
-				    archtesterd_idtype id,
-				    unsigned char ttl) {
+archtesterd_reportprogress_received_other() {
   
   if (progress) {
     printf(" <--- OTHER\n");
@@ -879,6 +877,7 @@ archtesterd_probingprocess(int sd,
 				    &responseToIcmpHdr)) {
       
       debugf("invalid packet, ignoring");
+      archtesterd_reportprogress_received_other();
       
     } else if (!archtesterd_packetisforus(receivedPacket,
 					  receivedPacketLength,
@@ -889,6 +888,7 @@ archtesterd_probingprocess(int sd,
 					  &responseToIcmpHdr)) {
       
       debugf("packet not for us, ignoring");
+      archtesterd_reportprogress_received_other();
       
     } else {
       
