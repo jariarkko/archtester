@@ -1152,7 +1152,7 @@ archtesterd_reportConclusion() {
   unsigned int unreach = archtesterd_unreachableresponses();
   
   if (hopsMin == hopsMax) {
-    printf("%s is %u hops away\n", testDestination, hopsMin);
+    printf("%s is %u hops away", testDestination, hopsMin);
   } else if (hopsMin == -1 && hopsMax >= maxTtl) {
     printf("%s is unknown hops away", testDestination);
   } else {
