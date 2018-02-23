@@ -81,7 +81,8 @@ debugf(const char* format, ...) {
     va_start (args, format);
     vprintf(format, args);
     va_end (args);
-
+    printf("\n");
+    
   }
   
 }
@@ -391,7 +392,7 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   // Debugs
   //
   
-  debugf("constructed a packet of %u bytes, ttl = %u\n", packetLength, ttl);
+  debugf("constructed a packet of %u bytes, ttl = %u", packetLength, ttl);
   
   //
   // Return the packet
@@ -430,7 +431,7 @@ static int archtesterd_receivepacket(int sd,
   socklen_t fromlen;
   int bytes;
 
-  debugf("waiting for responses\n");
+  debugf("waiting for responses");
   
   if ((bytes = recvfrom (sd, packet, sizeof(packet), 0, (struct sockaddr *) &from, &fromlen)) < 0) {
     fatalp("socket() failed to read from the raw socket");
@@ -555,9 +556,9 @@ archtesterd_runtest(unsigned int startTtl,
   // Debugs
   //
   
-  debugf("ifindex = %d\n", ifindex);
-  debugf("source = %s\n", archtesterd_iptostring(&sourceAddress));
-  debugf("destination = %s\n", archtesterd_iptostring(&destinationAddress));
+  debugf("ifindex = %d", ifindex);
+  debugf("source = %s", archtesterd_iptostring(&sourceAddress));
+  debugf("destination = %s", archtesterd_iptostring(&destinationAddress));
   
   //
   // Get an output raw socket
@@ -624,7 +625,7 @@ archtesterd_runtest(unsigned int startTtl,
   
   if ((receivedPacketLength = archtesterd_receivepacket(rd, &receivedPacket)) > 0) {
     
-    debugf("received a packet of %u bytes\n", receivedPacketLength);
+    debugf("received a packet of %u bytes", receivedPacketLength);
     
   }
 
@@ -633,14 +634,14 @@ archtesterd_runtest(unsigned int startTtl,
   //
   
   if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength,&responseType)) {
-    debugf("invalid packet, ignoring\n");
+    debugf("invalid packet, ignoring");
   }
   
   if (!archtesterd_packetisforus(receivedPacket,receivedPacketLength,&sourceAddress)) {
-    debugf("packet not for us, ignoring\n");
+    debugf("packet not for us, ignoring");
   }
   
-  debugf("packet was for us, taking into account\n");
+  debugf("packet was for us, taking into account");
 
   //
   // Register the response into our own database
