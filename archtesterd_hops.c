@@ -77,6 +77,7 @@ const char* testDestination = "www.google.com";
 const char* interface = "eth0";
 static int debug = 0;
 static int progress = 1;
+static int progressDetailed = 0;
 static int conclusion = 1;
 static int statistics = 0;
 static unsigned int startTtl = 1;
@@ -91,6 +92,13 @@ static unsigned int probesSent = 0;
 static unsigned char currentTtl = 0;
 static int hopsMin = -1;
 static int hopsMax = 255;
+
+//
+// Prototype definitions of functions
+//
+
+static void
+archtesterd_reportBriefConclusion(void);
 
 //
 // Debug helper function
@@ -770,13 +778,28 @@ archtesterd_reportprogress_received(enum archtesterd_responseType responseType,
   if (progress) {
     switch (responseType) {
     case archtesterd_responseType_echoResponse:
-      printf(" <--- #%u REPLY\n", id);
+      printf(" <--- #%u REPLY", id);
+      if (progressDetailed) {
+	printf(": ");
+	archtesterd_reportBriefConclusion();
+      }
+      printf("\n");
       break;
     case archtesterd_responseType_destinationUnreachable:
-      printf(" <--- #%u UNREACH\n", id);
+      printf(" <--- #%u UNREACH", id);
+      if (progressDetailed) {
+	printf(": ");
+	archtesterd_reportBriefConclusion();
+      }
+      printf("\n");
       break;
     case archtesterd_responseType_timeExceeded:
-      printf(" <--- #%u TTL EXPIRED\n", id);
+      printf(" <--- #%u TTL EXPIRED", id);
+      if (progressDetailed) {
+	printf(": ");
+	archtesterd_reportBriefConclusion();
+      }
+      printf("\n");
       break;
     default:
       fatalf("invalid response type");
@@ -1140,6 +1163,24 @@ archtesterd_unreachableresponses() {
 }
 
 //
+// Output the current state of (brief) conclusion (as much as we know)
+// from the probing process
+//
+
+static void
+archtesterd_reportBriefConclusion() {
+  if (hopsMin == hopsMax) {
+    printf("%u hops away\n", hopsMin);
+  } else if (hopsMin == -1 && hopsMax >= maxTtl) {
+    printf("unknown hops away\n");
+  } else {
+    printf("%u.. %u hops away",
+	   hopsMin == -1 ? 0 : hopsMin,
+	   hopsMax);
+  }
+}
+
+//
 // Output a conclusion (as much as we know) from the
 // probing process
 //
@@ -1279,6 +1320,12 @@ main(int argc,
       progress = 0;
     } else if (strcmp(argv[0],"-d") == 0) {
       debug = 1;
+    } else if (strcmp(argv[0],"-np") == 0) {
+      progress = 0;
+      progressDetailed = 0;
+    } else if (strcmp(argv[0],"-p") == 0) {
+      progress = 1;
+      progressDetailed = 1;
     } else if (strcmp(argv[0],"-y") == 0) {
       statistics = 1;
     } else if (strcmp(argv[0],"-s") == 0 && argc > 1 && isdigit(argv[1][0])) {
