@@ -138,6 +138,29 @@ archtesterd_fillwithstring(char* buffer,
   
 }
 
+static unsigned long
+archtesterd_timediffinusecs(struct timeval* later,
+			    struct timeval* earlier) {
+  if (later->tv_sec < earlier->tv_sec) {
+    fatalf("expected later time to be greater, second go back %uls", earlier->tv_sec - later->tv_sec);
+  }
+  if (later->tv_sec == earlier->tv_sec) {
+    if (later->tv_usec < earlier->tv_usec) {
+      fatalf("expected later time to be greater, microsecond go back %uls", earlier->tv_usec - later->tv_usec);
+    }
+    return(later->tv_usec - earlier->tv_usec);
+  } else {
+    unsigned long result = 1000 * 1000 * (later->tv_sec - earlier->tv_sec);
+    result += (1000*1000) - earlier->tv_usec;
+    result += later->tv_usec;
+    return(result);
+  }
+}
+
+//
+// Convert an IPv4 address to string
+//
+
 const char*
 archtesterd_addrtostring(struct in_addr* addr) {
   return(inet_ntoa(*addr));
@@ -174,7 +197,7 @@ archtesterd_newprobe(char id,
 }
 
 struct archtesterd_probe*
-archtesterd_findprobe(char id) {
+archtesterd_findprobe(unsigned char id) {
   
   struct archtesterd_probe* probe = &probes[id];
   
@@ -188,6 +211,46 @@ archtesterd_findprobe(char id) {
     return(probe);
   }
   
+}
+
+static void
+archtesterd_registerResponse(enum archtesterd_responseType type,
+			     unsigned char id,
+			     unsigned int packetLength) {
+
+  //
+  // See if we can find the probe that this is a response to
+  //
+  
+  struct archtesterd_probe* probe = archtesterd_findprobe(id);
+  if (probe == 0) {
+    debugf("cannot find the probe that response id %u was a response to", id);
+    return;
+  }
+
+  //
+  // Look at the state of the probe
+  //
+
+  if (probe->responded) {
+    debugf("we have already seen a response to probe id %u", id);
+    return;
+  }
+  
+  //
+  // This is new. Update the probe data
+  //
+
+  debugf("this is a new valid response to probe id %u", id);
+  probe->responded = 1;
+  probe->responseLength = packetLength;
+  if (gettimeofday(&probe->responseTime, 0) < 0) {
+    fatalp("cannot determine current time via gettimeofday");
+  }
+  probe->delayUSecs = archtesterd_timediffinusecs(&probe->responseTime,
+						  &probe->sentTime);
+  debugf("probe delay was %.3f ms", probe->delayUSecs / 1000.0);
+  probe->responseType = type;
 }
 
 //
@@ -448,7 +511,8 @@ static int archtesterd_receivepacket(int sd,
 static int
 archtesterd_validatepacket(char* receivedPacket,
 			   int receivedPacketLength,
-			   enum archtesterd_responseType* responseType) {
+			   enum archtesterd_responseType* responseType,
+			   unsigned char* responseId) {
   
   struct ip iphdr;
   struct icmp icmphdr;
@@ -497,6 +561,7 @@ archtesterd_validatepacket(char* receivedPacket,
   // Seems OK
   //
   
+  *responseId = iphdr.ip_id;
   return(1);
 }
 
@@ -534,6 +599,7 @@ archtesterd_runtest(unsigned int startTtl,
   unsigned char ttl = startTtl;
   unsigned int packetLength;
   unsigned int expectedLen;
+  unsigned char responseId;
   int receivedPacketLength;
   char* receivedPacket;
   unsigned char id;
@@ -633,21 +699,25 @@ archtesterd_runtest(unsigned int startTtl,
   // Verify response packet (that it is for us, long enough, etc.)
   //
   
-  if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength,&responseType)) {
+  if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength,&responseType,&responseId)) {
+    
     debugf("invalid packet, ignoring");
-  }
-  
-  if (!archtesterd_packetisforus(receivedPacket,receivedPacketLength,&sourceAddress)) {
+    
+  } else if (!archtesterd_packetisforus(receivedPacket,receivedPacketLength,&sourceAddress)) {
+    
     debugf("packet not for us, ignoring");
+    
+  } else {
+    
+    debugf("packet was for us, taking into account");
+    
+    //
+    // Register the response into our own database
+    //
+    
+    archtesterd_registerResponse(responseType, responseId, receivedPacketLength);
+    
   }
-  
-  debugf("packet was for us, taking into account");
-
-  //
-  // Register the response into our own database
-  //
-  
-  
   
   //
   // Done. Return.
@@ -663,6 +733,8 @@ archtesterd_reportStats() {
   unsigned int nEchoReplies = 0;
   unsigned int nDestinationUnreachables = 0;
   unsigned int nTimeExceededs = 0;
+  unsigned int probeBytes = 0;
+  unsigned int responseBytes = 0;
   unsigned int hopsused[256];
   unsigned int id;
   unsigned long shortestDelay = 0xffffffff;
@@ -676,8 +748,10 @@ archtesterd_reportStats() {
     if (probe->used) {
       nProbes++;
       hopsused[probe->hops]++;
+      probeBytes += probe->probeLength;
       if (probe->responded) {
 	nResponses++;
+	responseBytes += probe->responseLength;
 	if (probe->delayUSecs < shortestDelay) shortestDelay = probe->delayUSecs; 
 	if (probe->delayUSecs > longestDelay) longestDelay = probe->delayUSecs; 
 	switch (probe->responseType) {
@@ -716,7 +790,9 @@ archtesterd_reportStats() {
     }
     printf("\n");
   }
+  printf("%6u    bytes used in the probes\n", probeBytes);
   printf("  %4u    responses received\n", nResponses);
+  printf("%6u    bytes used in the responses\n", responseBytes);
   printf("  %4u    echo replies received\n", nEchoReplies);
   printf("  %4u    destination unreachable errors received\n", nDestinationUnreachables);
   printf("  %4u    time exceeded errors received\n", nTimeExceededs);
