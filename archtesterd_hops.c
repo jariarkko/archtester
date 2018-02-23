@@ -18,6 +18,18 @@
 #include <errno.h>
 
 //
+// Constants for the protocols formats
+//
+
+#define ARCHTESTERD_IP4_HDRLEN			20
+#define ARCHTESTERD_ICMP4_HDRLEN		 8
+#define ARCHTESTERD_ICMP_ECHOREPLY		 0
+#define ARCHTESTERD_ICMP_DEST_UNREACH		 3
+#define ARCHTESTERD_ICMP_ECHO			 8
+#define ARCHTESTERD_ICMP_TIME_EXCEEDED		11
+
+
+//
 // Types
 //
 
@@ -26,6 +38,7 @@ typedef uint16_t archtesterd_idtype;
 enum archtesterd_algorithms {
   archtesterd_algorithms_random,
   archtesterd_algorithms_sequential,
+  archtesterd_algorithms_reversesequential,
   archtesterd_algorithms_binarysearch
 };
 
@@ -52,10 +65,7 @@ struct archtesterd_probe {
 // Constants
 //
 
-#define IP4_HDRLEN			20
-#define ICMP4_HDRLEN			 8
-
-#define archtesterd_algorithms_string	"random, sequential, or binarysearch"
+#define archtesterd_algorithms_string	"random, sequential, reversesequential, or binarysearch"
 
 #define ARCHTESTERD_MAX_PROBES	       256
 
@@ -66,12 +76,16 @@ struct archtesterd_probe {
 static int debug = 0;
 static int progress = 1;
 static int statistics = 0;
+static unsigned int startTtl = 1;
 static unsigned int maxTtl = 255;
 static unsigned int maxProbes = 50;
+static unsigned int parallel = 1;
+static unsigned int bucket = 0;
 static unsigned int icmpDataLength = 10;
 static enum archtesterd_algorithms algorithm = archtesterd_algorithms_sequential;
 static struct archtesterd_probe probes[ARCHTESTERD_MAX_PROBES];
 static unsigned int probesSent = 0;
+static unsigned char currentTtl = 0;
 static int hopsMin = -1;
 static int hopsMax = 255;
 
@@ -205,6 +219,7 @@ archtesterd_newprobe(char id,
   debugf("registered a probe for id %u, ttl %u", id, hops);
   
   probesSent++;
+  if (bucket > 0) bucket--;
   return(probe);
 }
 
@@ -280,6 +295,13 @@ archtesterd_registerResponse(enum archtesterd_responseType type,
     debugf("time exceeded means hops is at least %u", hopsMin);
   }
 
+  //
+  // Update the task counters
+  //
+  
+  bucket++;
+  if (bucket > parallel) bucket = parallel;
+  
   //
   // Return, and set output parameters
   //
@@ -446,7 +468,7 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   // Make some checks
   //
 
-  if (IP4_HDRLEN + ICMP4_HDRLEN + dataLength > IP_MAXPACKET) {
+  if (ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN + dataLength > IP_MAXPACKET) {
     fatalf("requesting to make a too long IP packet for data length %u", dataLength);
   }
   
@@ -454,17 +476,17 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   // Fill in ICMP parts
   //
   
-  icmphdr.icmp_type = ICMP_ECHO;
+  icmphdr.icmp_type = ARCHTESTERD_ICMP_ECHO;
   icmphdr.icmp_code = 0;
   icmphdr.icmp_id = id;
   icmphdr.icmp_seq = (uint16_t)(probesSent & 0xFFFF);
   icmphdr.icmp_cksum = 0;
   archtesterd_fillwithstring(data,message,dataLength);
-  icmpLength = ICMP4_HDRLEN + dataLength;
-  memcpy(packet + IP4_HDRLEN,&icmphdr,ICMP4_HDRLEN);
-  memcpy(packet + IP4_HDRLEN + ICMP4_HDRLEN,data,dataLength);
-  icmphdr.icmp_cksum = archtesterd_checksum((uint16_t*)(packet + IP4_HDRLEN), icmpLength);
-  memcpy(packet + IP4_HDRLEN,&icmphdr,ICMP4_HDRLEN);
+  icmpLength = ARCHTESTERD_ICMP4_HDRLEN + dataLength;
+  memcpy(packet + ARCHTESTERD_IP4_HDRLEN,&icmphdr,ARCHTESTERD_ICMP4_HDRLEN);
+  memcpy(packet + ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN,data,dataLength);
+  icmphdr.icmp_cksum = archtesterd_checksum((uint16_t*)(packet + ARCHTESTERD_IP4_HDRLEN), icmpLength);
+  memcpy(packet + ARCHTESTERD_IP4_HDRLEN,&icmphdr,ARCHTESTERD_ICMP4_HDRLEN);
   
   //
   // Fill in the IPv4 header
@@ -473,7 +495,7 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   iphdr.ip_hl = 5;
   iphdr.ip_v = 4;
   iphdr.ip_tos = 0;
-  packetLength = IP4_HDRLEN + icmpLength;
+  packetLength = ARCHTESTERD_IP4_HDRLEN + icmpLength;
   iphdr.ip_len = htons (packetLength);
   iphdr.ip_id = id;
   iphdr.ip_off = 0;
@@ -482,8 +504,8 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   iphdr.ip_src = source->sin_addr;
   iphdr.ip_dst = destination->sin_addr;
   iphdr.ip_sum = 0;
-  iphdr.ip_sum = archtesterd_checksum((uint16_t*)&iphdr,IP4_HDRLEN);
-  memcpy (packet, &iphdr, IP4_HDRLEN);
+  iphdr.ip_sum = archtesterd_checksum((uint16_t*)&iphdr,ARCHTESTERD_IP4_HDRLEN);
+  memcpy (packet, &iphdr, ARCHTESTERD_IP4_HDRLEN);
 
   //
   // Debugs
@@ -557,8 +579,8 @@ archtesterd_validatepacket(char* receivedPacket,
   // Validate IP4 header
   //
   
-  if (receivedPacketLength < IP4_HDRLEN) return(0);
-  memcpy(&iphdr,receivedPacket,IP4_HDRLEN);
+  if (receivedPacketLength < ARCHTESTERD_IP4_HDRLEN) return(0);
+  memcpy(&iphdr,receivedPacket,ARCHTESTERD_IP4_HDRLEN);
   if (iphdr.ip_v != 4) return(0);
   if (ntohs(iphdr.ip_len) < receivedPacketLength) return(0);
   if (iphdr.ip_off != 0) return(0);
@@ -569,30 +591,36 @@ archtesterd_validatepacket(char* receivedPacket,
   // Validate ICMP4 header
   //
   
-  if (receivedPacketLength < IP4_HDRLEN + ICMP4_HDRLEN) return(0);
-  memcpy(&icmphdr,&receivedPacket[IP4_HDRLEN],ICMP4_HDRLEN);
+  if (receivedPacketLength < ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN) return(0);
+  memcpy(&icmphdr,&receivedPacket[ARCHTESTERD_IP4_HDRLEN],ARCHTESTERD_ICMP4_HDRLEN);
   *responseId = icmphdr.icmp_id;
   
   // TODO: check icmphdr.icmp_sum ...
 
   switch (icmphdr.icmp_type) {
 
-  case ICMP_ECHOREPLY:
+  case ARCHTESTERD_ICMP_ECHOREPLY:
     *responseType = archtesterd_responseType_echoResponse;
     debugf("ECHO RESPONSE from %s", archtesterd_addrtostring(&iphdr.ip_src));
     break;
 
-  case ICMP_TIME_EXCEEDED:
+  case ARCHTESTERD_ICMP_TIME_EXCEEDED:
     if (icmphdr.icmp_code != 0) {
       debugf("ICMP code in TIME EXCEEDED is not 0");
       return(0);
     }
-    if (ntohs(iphdr.ip_len) < IP4_HDRLEN + ICMP4_HDRLEN + IP4_HDRLEN + ICMP4_HDRLEN) {
+    if (ntohs(iphdr.ip_len) <
+	ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN +
+	ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN) {
       debugf("ICMP error does not include enough of the original packet", ntohs(iphdr.ip_len));
       return(0);
     }
-    memcpy(responseToIpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN],IP4_HDRLEN);
-    memcpy(responseToIcmpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN+IP4_HDRLEN],ICMP4_HDRLEN);
+    memcpy(responseToIpHdr,
+	   &receivedPacket[ARCHTESTERD_IP4_HDRLEN+ARCHTESTERD_ICMP4_HDRLEN],
+	   ARCHTESTERD_IP4_HDRLEN);
+    memcpy(responseToIcmpHdr,
+	   &receivedPacket[ARCHTESTERD_IP4_HDRLEN+ARCHTESTERD_ICMP4_HDRLEN+ARCHTESTERD_IP4_HDRLEN],
+	   ARCHTESTERD_ICMP4_HDRLEN);
     *responseId = responseToIcmpHdr->icmp_id;
     debugf("inner header as seen by archtesterd_validatepacket:");
     debugf("  inner ip proto = %u", responseToIpHdr->ip_p);
@@ -603,7 +631,7 @@ archtesterd_validatepacket(char* receivedPacket,
     debugf("  inner icmp code = %u", responseToIcmpHdr->icmp_code);
     debugf("using inner id %u in ICMP error", *responseId);
     if (responseToIpHdr->ip_p != IPPROTO_ICMP &&
-	responseToIcmpHdr->icmp_type != ICMP_ECHO) {
+	responseToIcmpHdr->icmp_type != ARCHTESTERD_ICMP_ECHO) {
       debugf("ICMP error includes some other packet than ICMP ECHO proto = %u icmp code = %u",
 	     responseToIpHdr->ip_p,
 	     responseToIcmpHdr->icmp_type);
@@ -613,17 +641,23 @@ archtesterd_validatepacket(char* receivedPacket,
     debugf("TIME EXCEEDED from %s", archtesterd_addrtostring(&iphdr.ip_src));
     break;
 
-  case ICMP_DEST_UNREACH:
-    if (ntohs(iphdr.ip_len) < IP4_HDRLEN + ICMP4_HDRLEN + IP4_HDRLEN + ICMP4_HDRLEN) {
+  case ARCHTESTERD_ICMP_DEST_UNREACH:
+    if (ntohs(iphdr.ip_len) <
+	ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN +
+	ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN) {
       debugf("ICMP error does not include enough of the original packet", ntohs(iphdr.ip_len));
       return(0);
     }
-    memcpy(responseToIpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN],IP4_HDRLEN);
-    memcpy(responseToIcmpHdr,&receivedPacket[IP4_HDRLEN+ICMP4_HDRLEN+IP4_HDRLEN],ICMP4_HDRLEN);
+    memcpy(responseToIpHdr,
+	   &receivedPacket[ARCHTESTERD_IP4_HDRLEN+ARCHTESTERD_ICMP4_HDRLEN],
+	   ARCHTESTERD_IP4_HDRLEN);
+    memcpy(responseToIcmpHdr,
+	   &receivedPacket[ARCHTESTERD_IP4_HDRLEN+ARCHTESTERD_ICMP4_HDRLEN+ARCHTESTERD_IP4_HDRLEN],
+	   ARCHTESTERD_ICMP4_HDRLEN);
     *responseId = responseToIcmpHdr->icmp_id;
     debugf("using inner id %u in ICMP error", *responseId);
     if (responseToIpHdr->ip_p != IPPROTO_ICMP &&
-	responseToIcmpHdr->icmp_type != ICMP_ECHO) {
+	responseToIcmpHdr->icmp_type != ARCHTESTERD_ICMP_ECHO) {
       debugf("ICMP error includes some other packet than ICMP ECHO proto = %u icmp code = %u",
 	     responseToIpHdr->ip_p,
 	     responseToIcmpHdr->icmp_type);
@@ -665,7 +699,7 @@ archtesterd_packetisforus(char* receivedPacket,
   // Check the destination is our source address
   //
   
-  memcpy(&iphdr,receivedPacket,IP4_HDRLEN);
+  memcpy(&iphdr,receivedPacket,ARCHTESTERD_IP4_HDRLEN);
   if (memcmp(&iphdr.ip_dst,&sourceAddress->sin_addr,sizeof(iphdr.ip_dst)) != 0) return(0);
   
   //
@@ -760,62 +794,40 @@ archtesterd_shouldcontinue() {
   if (hopsMin == hopsMax) return(0);
   return(1);
 }
-  
+
 //
-// The test main loop
+// Send as many probes as we are allowed to send
 //
 
 static void
-archtesterd_probingprocess(int sd,
-			   int rd,
-			   struct sockaddr_in* destinationAddress,
-			   struct sockaddr_in* sourceAddress,
-			   unsigned int startTtl) {
+archtesterd_sendprobes(int sd,
+		       struct sockaddr_in* destinationAddress,
+		       struct sockaddr_in* sourceAddress) {
   
-  enum archtesterd_responseType responseType;
-  struct archtesterd_probe* responseToProbe;
-  struct archtesterd_probe* probe;
-  unsigned int packetLength;
-  archtesterd_idtype responseId;
-  unsigned int expectedLen;
-  int receivedPacketLength;
-  char* receivedPacket;
-  unsigned char ttl;
-  archtesterd_idtype id;
-  char* packet;
-  
-  //
-  // Adjust TTL if needed
-  //
-  
-  debugf("startTtl %u, maxTtl %u", startTtl, maxTtl);
-  if (startTtl > maxTtl) {
-    startTtl = maxTtl;
-    debugf("reset startTtl to %u", startTtl);
-  }
-  ttl = startTtl;
-
-  //
-  // Loop
-  //
-
-  while (archtesterd_shouldcontinue()) {
-
-    struct ip responseToIpHdr;
-    struct icmp responseToIcmpHdr;
-
+  while (bucket > 0) {
+    
+    struct archtesterd_probe* probe;
+    unsigned int packetLength;
+    unsigned int expectedLen;
+    archtesterd_idtype id;
+    char* packet;
+    
     //
     // Depending on algorithm, adjust behaviour
     //
-
+    
     switch (algorithm) {
     case archtesterd_algorithms_random:
-      ttl = hopsMin + 1 + (rand() % (hopsMax - hopsMin - 1));
-      debugf("selected a random ttl %u in range %u..%u", ttl, hopsMin+1, hopsMax);
+      currentTtl = hopsMin + 1 + (rand() % (hopsMax - hopsMin - 1));
+      debugf("selected a random ttl %u in range %u..%u", currentTtl, hopsMin+1, hopsMax);
       break;
     case archtesterd_algorithms_sequential:
-      if (probesSent > 0) ttl++;
-      debugf("selected one larger ttl %u", ttl);
+      if (probesSent > 0) currentTtl++;
+      debugf("selected one larger ttl %u", currentTtl);
+      break;
+    case archtesterd_algorithms_reversesequential:
+      if (probesSent > 0) currentTtl--;
+      debugf("selected one smaller ttl %u", currentTtl);
       break;
     case archtesterd_algorithms_binarysearch:
       fatalf("binary search not implemented yet");
@@ -827,16 +839,16 @@ archtesterd_probingprocess(int sd,
     // Create a packet
     //
     
-    id = archtesterd_getnewid(ttl);
-    expectedLen = IP4_HDRLEN + ICMP4_HDRLEN + icmpDataLength;
-    probe = archtesterd_newprobe(id,ttl,expectedLen);
+    id = archtesterd_getnewid(currentTtl);
+    expectedLen = ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN + icmpDataLength;
+    probe = archtesterd_newprobe(id,currentTtl,expectedLen);
     if (probe == 0) {
       fatalf("cannot allocate a new probe entry");
     }
     archtesterd_constructicmp4packet(sourceAddress,
 				     destinationAddress,
 				     id,
-				     ttl,
+				     currentTtl,
 				     icmpDataLength,
 				     &packet,
 				     &packetLength);
@@ -853,10 +865,63 @@ archtesterd_probingprocess(int sd,
 			   packet,
 			   packetLength, (struct sockaddr *)destinationAddress,
 			   sizeof (struct sockaddr));
-    archtesterd_reportprogress_sent(id,ttl);
+    archtesterd_reportprogress_sent(id,currentTtl);
+  
+  }
+  
+}
+
+//
+// The test main loop
+//
+
+static void
+archtesterd_probingprocess(int sd,
+			   int rd,
+			   struct sockaddr_in* destinationAddress,
+			   struct sockaddr_in* sourceAddress,
+			   unsigned int startTtl) {
+  
+  enum archtesterd_responseType responseType;
+  struct archtesterd_probe* responseToProbe;
+  archtesterd_idtype responseId;
+  int receivedPacketLength;
+  char* receivedPacket;
+
+  //
+  // Initialize task counters
+  //
+
+  bucket = parallel;
+  
+  //
+  // Adjust TTL if needed
+  //
+  
+  debugf("startTtl %u, maxTtl %u", startTtl, maxTtl);
+  if (startTtl > maxTtl) {
+    startTtl = maxTtl;
+    debugf("reset startTtl to %u", startTtl);
+  }
+  currentTtl = startTtl;
+  
+  //
+  // Loop
+  //
+
+  while (archtesterd_shouldcontinue()) {
+
+    struct ip responseToIpHdr;
+    struct icmp responseToIcmpHdr;
+
+    //
+    // Send as many probes as we can
+    //
+
+    archtesterd_sendprobes(sd,destinationAddress,sourceAddress);
     
     //
-    // Wait for response
+    // Wait for responses
     //
     
     if ((receivedPacketLength = archtesterd_receivepacket(rd, &receivedPacket)) > 0) {
@@ -1069,7 +1134,6 @@ main(int argc,
 
   const char* testDestination = "www.google.com";
   const char* interface = "eth0";
-  unsigned int startTtl = 10;
 
   //
   // Initialize
@@ -1103,11 +1167,20 @@ main(int argc,
       maxProbes = atoi(argv[1]);
       debugf("maxProbes set to %u", maxProbes);
       argc--; argv++;
+    } else if (strcmp(argv[0],"-parallel") == 0 && argc > 1 && isdigit(argv[1][0])) {
+      parallel = atoi(argv[1]);
+      if (parallel < 1 || parallel >= 100) {
+	fatalf("invalid number of parallel probes");
+      }
+      debugf("parallel set to %u", parallel);
+      argc--; argv++;
     } else if (strcmp(argv[0],"-algorithm") == 0 && argc > 1) {
       if (strcmp(argv[1],"random") == 0) {
 	algorithm = archtesterd_algorithms_random;
       } else if (strcmp(argv[1],"sequential") == 0) {
 	algorithm = archtesterd_algorithms_sequential;
+      } else if (strcmp(argv[1],"reversesequential") == 0) {
+	algorithm = archtesterd_algorithms_reversesequential;
       } else if (strcmp(argv[1],"binarysearch") == 0) {
 	algorithm = archtesterd_algorithms_binarysearch;
       } else {
