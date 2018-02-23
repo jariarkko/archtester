@@ -745,6 +745,17 @@ archtesterd_reportprogress_sent(archtesterd_idtype id,
 }
 
 //
+// Reporting progress: sending many in parallel
+//
+
+static void
+archtesterd_reportprogress_sendingmore() {
+  if (progress) {
+    printf("\n");
+  }
+}
+
+//
 // Reporting progress: received
 //
 
@@ -803,6 +814,8 @@ static void
 archtesterd_sendprobes(int sd,
 		       struct sockaddr_in* destinationAddress,
 		       struct sockaddr_in* sourceAddress) {
+
+  unsigned int sent = 0;
   
   while (bucket > 0) {
     
@@ -865,8 +878,10 @@ archtesterd_sendprobes(int sd,
 			   packet,
 			   packetLength, (struct sockaddr *)destinationAddress,
 			   sizeof (struct sockaddr));
+    if (sent > 0) archtesterd_reportprogress_sendingmore();
     archtesterd_reportprogress_sent(id,currentTtl);
-  
+    sent++;
+    
   }
   
 }
