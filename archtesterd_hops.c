@@ -599,7 +599,7 @@ archtesterd_runtest(unsigned int startTtl,
   struct sockaddr_in sourceAddress;
   struct archtesterd_probe* probe;
   struct sockaddr_in bindAddress;
-  unsigned char ttl = startTtl;
+  unsigned char ttl;
   unsigned int packetLength;
   unsigned int expectedLen;
   unsigned char responseId;
@@ -623,6 +623,7 @@ archtesterd_runtest(unsigned int startTtl,
     startTtl = maxTtl;
     debugf("reset startTtl to %u", startTtl);
   }
+  ttl = startTtl;
   
   //
   // Find out ifindex, own address, destination address
