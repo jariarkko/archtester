@@ -137,6 +137,11 @@ archtesterd_fillwithstring(char* buffer,
   
 }
 
+const char*
+archtesterd_addrtostring(struct in_addr* addr) {
+  return(inet_ntoa(*addr));
+}
+
 //
 // Add a new probe entry
 //
@@ -441,7 +446,8 @@ static int archtesterd_receivepacket(int sd,
 
 static int
 archtesterd_validatepacket(char* receivedPacket,
-			   int receivedPacketLength) {
+			   int receivedPacketLength,
+			   enum archtesterd_responseType* responseType) {
   
   struct ip iphdr;
   struct icmp icmphdr;
@@ -464,12 +470,27 @@ archtesterd_validatepacket(char* receivedPacket,
   
   if (receivedPacketLength < IP4_HDRLEN + ICMP4_HDRLEN) return(0);
   memcpy(&icmphdr,&receivedPacket[IP4_HDRLEN],ICMP4_HDRLEN);
-  if (icmphdr.icmp_type != ICMP_ECHOREPLY &&
-      icmphdr.icmp_type != ICMP_TIME_EXCEEDED &&
-      icmphdr.icmp_type != ICMP_DEST_UNREACH) return(0);
-  if (icmphdr.icmp_type != ICMP_TIME_EXCEEDED && icmphdr.icmp_code != 0) return(0);
+
   // TODO: match icmp_id to what we had sent earlier...
   // TODO: check icmphdr.icmp_sum ...
+
+  switch (icmphdr.icmp_type) {
+  case ICMP_ECHOREPLY:
+    *responseType = archtesterd_responseType_echoResponse;
+    debugf("ECHO RESPONSE from %s", archtesterd_addrtostring(&iphdr.ip_src));
+    break;
+  case ICMP_TIME_EXCEEDED:
+    *responseType = archtesterd_responseType_timeExceeded;
+    if (icmphdr.icmp_code != 0) return(0);
+    debugf("TIME EXCEEDED from %s", archtesterd_addrtostring(&iphdr.ip_src));
+    break;
+  case ICMP_DEST_UNREACH:
+    *responseType = archtesterd_responseType_destinationUnreachable;
+    debugf("DESTINATION UNREACHABLE from %s", archtesterd_addrtostring(&iphdr.ip_src));
+    break;
+  default:
+    return(0);
+  }
   
   //
   // Seems OK
@@ -488,7 +509,7 @@ archtesterd_packetisforus(char* receivedPacket,
 			  int receivedPacketLength,
 			  struct sockaddr_in* sourceAddress) {
   struct ip iphdr;
-
+  
   memcpy(&iphdr,receivedPacket,IP4_HDRLEN);
   if (memcmp(&iphdr.ip_dst,&sourceAddress->sin_addr,sizeof(iphdr.ip_dst)) != 0) return(0);
   
@@ -504,6 +525,7 @@ archtesterd_runtest(unsigned int startTtl,
 		    const char* interface,
 		    const char* destination) {
 
+  enum archtesterd_responseType responseType;
   struct sockaddr_in destinationAddress;
   struct sockaddr_in sourceAddress;
   struct archtesterd_probe* probe;
@@ -610,7 +632,7 @@ archtesterd_runtest(unsigned int startTtl,
   // Verify response packet (that it is for us, long enough, etc.)
   //
   
-  if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength)) {
+  if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength,&responseType)) {
     debugf("invalid packet, ignoring\n");
   }
   
@@ -619,6 +641,12 @@ archtesterd_runtest(unsigned int startTtl,
   }
   
   debugf("packet was for us, taking into account\n");
+
+  //
+  // Register the response into our own database
+  //
+  
+  
   
   //
   // Done. Return.
@@ -670,20 +698,23 @@ archtesterd_reportStats() {
   
   printf("\n");
   printf("Statistics:\n");
-  printf("  %4u    probes sent out\n", nProbes);
-  printf("         on TTLs: ");
-  seenttl = 0;
-  for (ttl = 0; ttl < 256; ttl++) {
-    if (hopsused[ttl]) {
-      if (seenttl) printf(", ");
-      printf("%u", ttl);
-      if (hopsused[ttl] > 1) {
-	printf(" (%u times)", hopsused[ttl]);
-      }
-      seenttl = 1;
-    }
-  }
   printf("\n");
+  printf("  %4u    probes sent out\n", nProbes);
+  if (nProbes > 0) {
+    printf("          on TTLs: ");
+    seenttl = 0;
+    for (ttl = 0; ttl < 256; ttl++) {
+      if (hopsused[ttl]) {
+	if (seenttl) printf(", ");
+	printf("%u", ttl);
+	if (hopsused[ttl] > 1) {
+	  printf(" (%u times)", hopsused[ttl]);
+	}
+	seenttl = 1;
+      }
+    }
+    printf("\n");
+  }
   printf("  %4u    responses received\n", nResponses);
   printf("  %4u    echo replies received\n", nEchoReplies);
   printf("  %4u    destination unreachable errors received\n", nDestinationUnreachables);
