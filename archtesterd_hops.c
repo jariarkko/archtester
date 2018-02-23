@@ -1047,7 +1047,7 @@ main(int argc,
     } else if (strcmp(argv[0],"-i") == 0 && argc > 1) {
       interface = argv[1];
       argc--; argv++;
-    } else if (strcmp(argv[0],"-t") == 0 && argc > 1) {
+    } else if (strcmp(argv[0],"-startttl") == 0 && argc > 1) {
       startTtl = atoi(argv[1]);
       if (startTtl <= 0) {
 	fatalf("invalid TTL value");
