@@ -101,6 +101,13 @@ static void
 archtesterd_reportBriefConclusion(void);
 
 //
+// Some helper macros
+//
+
+#define archtesterd_min(a,b) ((a) < (b) ? (a) : (b))
+#define archtesterd_max(a,b) ((a) > (b) ? (a) : (b))
+
+//
 // Debug helper function
 //
 
@@ -298,11 +305,11 @@ archtesterd_registerResponse(enum archtesterd_responseType type,
   //
   
   if (type == archtesterd_responseType_echoResponse) {
-    hopsMax = probe->hops;
+    hopsMax = archtesterd_min(hopsMax,probe->hops);
     debugf("echo reply means hops is at most %u", hopsMax);
   }
   if (type == archtesterd_responseType_timeExceeded) {
-    hopsMin = probe->hops + 1;
+    hopsMin = archtesterd_max(hopsMin,probe->hops + 1);
     debugf("time exceeded means hops is at least %u", hopsMin);
   }
 
