@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -17,25 +18,52 @@
 #include <errno.h>
 
 //
+// Types
+//
+
+enum archtesterd_algorithms {
+  archtesterd_algorithms_sequential,
+  archtesterd_algorithms_binarysearch
+};
+
+enum archtesterd_responseType {
+  archtesterd_responseType_echoResponse,
+  archtesterd_responseType_timeExceeded
+};
+
+struct archtesterd_probe {
+  int used;
+  char id;
+  unsigned char hops;
+  unsigned int probeLength;
+  struct timeval sentTime;
+  int responded;
+  unsigned int responseLength;
+  struct timeval responseTime;
+  unsigned long delayUSecs;
+  enum archtesterd_responseType responseType;
+};
+
+//
 // Constants
 //
 
-#define IP4_HDRLEN		20
-#define ICMP4_HDRLEN		 8
+#define IP4_HDRLEN			20
+#define ICMP4_HDRLEN			 8
 
-enum algorithms {
-  algorithms_sequential,
-  algorithms_binarysearch
-};
+#define archtesterd_algorithms_string	"sequential or binarysearch"
 
-#define algorithms_string "sequential or binarysearch"
+#define ARCHTESTERD_MAX_PROBES	       256
 
 //
 // Variables
 //
 
 static int debug = 0;
-static enum algorithms algorithm = algorithms_sequential;
+static int statistics = 0;
+static unsigned int icmpDataLength = 10;
+static enum archtesterd_algorithms algorithm = archtesterd_algorithms_sequential;
+static struct archtesterd_probe probes[ARCHTESTERD_MAX_PROBES];
 
 //
 // Debug helper function
@@ -45,14 +73,137 @@ static void
 debugf(const char* format, ...) {
   
   if (debug) {
-    
+
     va_list args;
+
+    printf("archtesterd_hops: debug: ");
     va_start (args, format);
     vprintf(format, args);
     va_end (args);
 
   }
   
+}
+
+//
+// Display a fatal error
+//
+
+static void
+fatalf(const char* format, ...) {
+  
+  va_list args;
+  
+  fprintf(stderr,"archtesterd_hops: error: ");
+  va_start (args, format);
+  vfprintf(stderr, format, args);
+  va_end (args);
+  fprintf(stderr," -- exit\n");
+  
+  exit(1);
+}
+
+//
+// Display a fatal error a la perror
+//
+
+static void
+fatalp(const char* message) {
+  
+  const char* string = strerror(errno);
+  fatalf("system: %s", string);
+  
+}
+
+//
+// String processing: fill a buffer with string (cut/repeated as needed
+// to fill the expected length)
+//
+
+static void
+archtesterd_fillwithstring(char* buffer,
+			   const char* string,
+			   unsigned char bufferSize) {
+  
+  const char* stringPointer = string;
+  while (bufferSize > 0) {
+    *buffer = *stringPointer;
+    buffer++;
+    bufferSize--;
+    if (*stringPointer != '\0') stringPointer++;
+    if (*stringPointer == '\0') stringPointer = string;
+  }
+  
+}
+
+//
+// Add a new probe entry
+//
+
+struct archtesterd_probe*
+archtesterd_newprobe(char id,
+		     unsigned char hops,
+		     unsigned int probeLength) {
+  
+  struct archtesterd_probe* probe = &probes[id];
+  if (probe->used) {
+    fatalf("cannot allocate a new probe for id %u", (unsigned int)id);
+    return(0);
+  }
+
+  memset(probe,0,sizeof(*probe));
+  
+  probe->used = 1;
+  probe->id = id;
+  probe->hops = hops;
+  probe->probeLength = probeLength;
+  probe->responded = 0;
+  
+  if (gettimeofday(&probe->sentTime, 0) < 0) {
+    fatalp("cannot determine current time via gettimeofday");
+  }
+  
+  return(probe);
+}
+
+struct archtesterd_probe*
+archtesterd_findprobe(char id) {
+  
+  struct archtesterd_probe* probe = &probes[id];
+  
+  if (probe->used) {
+    debugf("have not sent a probe with id %u", (unsigned int)id);
+    return(0);
+  } else if (probe->responded) {
+    debugf("have already seen a response to the probe with id %u", (unsigned int)id);
+    return(0);
+  } else {
+    return(probe);
+  }
+  
+}
+
+//
+// Allocate new identifiers for the different probes
+//
+
+unsigned char
+archtesterd_getnewid(unsigned char hops) {
+  
+  static unsigned char nextId = 0;
+  unsigned char id;
+  
+  do {
+    
+    id = nextId++;
+    struct archtesterd_probe* probe = &probes[id];
+    if (probe->used) continue;
+    else return(id);
+    
+  } while (id <= 255);
+  
+  fatalf("cannot find a new identifier for %u hops", hops);
+  return(0);
 }
 
 //
@@ -73,8 +224,7 @@ archtesterd_getifindex(const char* interface,
   //
   
   if ((sd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
-    perror ("archtesterd_hops: socket() failed to get socket descriptor for using ioctl() ");
-    exit(1);
+    fatalp("socket() failed to get socket descriptor for using ioctl()");
   }
   
   //
@@ -84,8 +234,7 @@ archtesterd_getifindex(const char* interface,
   memset (&ifr,0,sizeof (ifr));
   strncpy(ifr.ifr_name, interface, sizeof (ifr.ifr_name));
   if (ioctl (sd, SIOCGIFINDEX, &ifr) < 0) {
-    perror ("archtesterd_hops: ioctl() failed to find interface ");
-    exit(1);
+    fatalp("ioctl() failed to find interface");
   }
   *ifIndex = ifr.ifr_ifindex;
   *ifrp = ifr;
@@ -97,8 +246,7 @@ archtesterd_getifindex(const char* interface,
   memset (&ifr,0,sizeof (ifr));
   strncpy(ifr.ifr_name, interface, sizeof (ifr.ifr_name));
   if (ioctl(sd,SIOCGIFADDR,&ifr)==-1) {
-    perror ("archtesterd_hops: ioctl() failed to find interface address ");
-    exit(1);
+    fatalp("ioctl() failed to find interface address");
   }
   *addr = *(struct sockaddr_in*)&ifr.ifr_addr;
   
@@ -138,8 +286,7 @@ archtesterd_iptostring(struct sockaddr_in* in) {
   char* result = (char*)malloc(INET_ADDRSTRLEN+1);
   memset(result,0,INET_ADDRSTRLEN+1);
   if (inet_ntop (AF_INET, (void*)&in->sin_addr, result, INET_ADDRSTRLEN) == NULL) {
-    fprintf(stderr, "archtesterd_hops: inet_ntop() failed -- exit\n");
-    exit(1);
+    fatalf("inet_ntop() failed");
   }
 }
 
@@ -177,18 +324,27 @@ archtesterd_checksum(uint16_t* data,
 static void
 archtesterd_constructicmp4packet(struct sockaddr_in* source,
 				 struct sockaddr_in* destination,
+				 unsigned char id,
 				 unsigned char ttl,
+				 unsigned int dataLength,
 				 char** resultPacket,
-				 unsigned int* resultPacketLength)  {
+				 unsigned int* resultPacketLength) {
 
   static const char* message = "archtester";
   static char data[IP_MAXPACKET];
   static char packet[IP_MAXPACKET];
   struct icmp icmphdr;
   struct ip iphdr;
-  unsigned int dataLength;
   unsigned int icmpLength;
   unsigned int packetLength;
+
+  //
+  // Make some checks
+  //
+
+  if (IP4_HDRLEN + ICMP4_HDRLEN + dataLength > IP_MAXPACKET) {
+    fatalf("requesting to make a too long IP packet for data length %u", dataLength);
+  }
   
   //
   // Fill in ICMP parts
@@ -196,11 +352,10 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   
   icmphdr.icmp_type = ICMP_ECHO;
   icmphdr.icmp_code = 0;
-  icmphdr.icmp_id = 0;
+  icmphdr.icmp_id = id;
   icmphdr.icmp_seq = 0;
   icmphdr.icmp_cksum = 0;
-  dataLength = strlen(message);
-  strcpy(data,message);
+  archtesterd_fillwithstring(data,message,dataLength);
   icmpLength = ICMP4_HDRLEN + dataLength;
   memcpy(packet + IP4_HDRLEN,&icmphdr,ICMP4_HDRLEN);
   memcpy(packet + IP4_HDRLEN + ICMP4_HDRLEN,data,dataLength);
@@ -216,7 +371,7 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   iphdr.ip_tos = 0;
   packetLength = IP4_HDRLEN + icmpLength;
   iphdr.ip_len = htons (packetLength);
-  iphdr.ip_id = 0;
+  iphdr.ip_id = id;
   iphdr.ip_off = 0;
   iphdr.ip_ttl = ttl;
   iphdr.ip_p = IPPROTO_ICMP;
@@ -230,7 +385,7 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   // Debugs
   //
   
-  debugf("archtesterd_hops: debug: constructed a packet of %u bytes, ttl = %u\n", packetLength, ttl);
+  debugf("constructed a packet of %u bytes, ttl = %u\n", packetLength, ttl);
   
   //
   // Return the packet
@@ -252,8 +407,7 @@ archtesterd_sendpacket(int sd,
 		       size_t addrLength)  {
   
   if (sendto (sd, packet, packetLength, 0, addr, sizeof (struct sockaddr)) < 0) {
-    perror ("archtesterd_hops: sendto() failed ");
-    exit(1);
+    fatalp("sendto() failed");
   }
   
 }
@@ -270,11 +424,10 @@ static int archtesterd_receivepacket(int sd,
   socklen_t fromlen;
   int bytes;
 
-  debugf("archtesterd_hops: debug: waiting for responses\n");
+  debugf("waiting for responses\n");
   
   if ((bytes = recvfrom (sd, packet, sizeof(packet), 0, (struct sockaddr *) &from, &fromlen)) < 0) {
-    perror ("archtesterd_hops: socket() failed to read from the raw socket ");
-    exit(1);
+    fatalp("socket() failed to read from the raw socket");
   }
   
   *result = packet;
@@ -352,13 +505,16 @@ archtesterd_runtest(unsigned int startTtl,
 
   struct sockaddr_in destinationAddress;
   struct sockaddr_in sourceAddress;
+  struct archtesterd_probe* probe;
   struct sockaddr_in bindAddress;
+  unsigned char ttl = startTtl;
   unsigned int packetLength;
+  unsigned int expectedLen;
   int receivedPacketLength;
   char* receivedPacket;
+  unsigned char id;
   struct ifreq ifr;
   int hdrison = 1;
-  int ttl = startTtl;
   char* packet;
   int ifindex;
   int bytes;
@@ -376,27 +532,24 @@ archtesterd_runtest(unsigned int startTtl,
   // Debugs
   //
   
-  debugf("archtesterd_hops: debug: ifindex = %d\n", ifindex);
-  debugf("archtesterd_hops: debug: source = %s\n", archtesterd_iptostring(&sourceAddress));
-  debugf("archtesterd_hops: debug: destination = %s\n", archtesterd_iptostring(&destinationAddress));
-    
+  debugf("ifindex = %d\n", ifindex);
+  debugf("source = %s\n", archtesterd_iptostring(&sourceAddress));
+  debugf("destination = %s\n", archtesterd_iptostring(&destinationAddress));
+  
   //
   // Get an output raw socket
   //
   
   if ((sd = socket (AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0) {
-    perror ("archtesterd_hops: socket() failed to get socket descriptor for using ioctl() ");
-    exit(1);
+    fatalp("socket() failed to get socket descriptor for using ioctl()");
   }
   
   if (setsockopt (sd, IPPROTO_IP, IP_HDRINCL, &hdrison, sizeof (hdrison)) < 0) {
-    perror ("archtesterd_hops: setsockopt() failed to set IP_HDRINCL ");
-    exit(1);
+    fatalp("setsockopt() failed to set IP_HDRINCL");
   }
   
   if (setsockopt (sd, SOL_SOCKET, SO_BINDTODEVICE, &ifr, sizeof (ifr)) < 0) {
-    perror ("archtesterd_hops: setsockopt() failed to bind to interface ");
-    exit(1);
+    fatalp("setsockopt() failed to bind to interface");
   }
 
   //
@@ -404,8 +557,7 @@ archtesterd_runtest(unsigned int startTtl,
   //
   
   if ((rd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1) {
-    perror("archtesterd_hops: cannot create input raw socket ");
-    exit(1);
+    fatalp("cannot create input raw socket");
   }
   
   bindAddress.sin_family = AF_INET;
@@ -413,24 +565,34 @@ archtesterd_runtest(unsigned int startTtl,
   bindAddress.sin_addr.s_addr = sourceAddress.sin_addr.s_addr;
   
   if (bind(rd, (struct sockaddr*) &bindAddress, sizeof(bindAddress)) == -1) {
-    perror("archtesterd_hops: cannot bind input raw socket ");
-    exit(1);
+    fatalp("cannot bind input raw socket");
   }
   
   //
   // Create a packet
   //
-
+  
+  id = archtesterd_getnewid(ttl);
+  expectedLen = IP4_HDRLEN + ICMP4_HDRLEN + icmpDataLength;
+  probe = archtesterd_newprobe(id,ttl,expectedLen);
+  if (probe == 0) {
+    fatalf("cannot allocate a new probe entry");
+  }
   archtesterd_constructicmp4packet(&sourceAddress,
 				   &destinationAddress,
+				   id,
 				   ttl,
+				   icmpDataLength,
 				   &packet,
 				   &packetLength);
-
+  if (expectedLen != packetLength) {
+    fatalf("expected and resulting packet lengths do not agree (%u vs. %u)", expectedLen, packetLength);
+  }
+  
   //
   // Send the packet
   //
-
+  
   archtesterd_sendpacket(sd, packet, packetLength, (struct sockaddr *) &destinationAddress, sizeof (struct sockaddr));
   
   //
@@ -439,7 +601,7 @@ archtesterd_runtest(unsigned int startTtl,
   
   if ((receivedPacketLength = archtesterd_receivepacket(rd, &receivedPacket)) > 0) {
     
-    debugf("archtesterd_hops: debug: received a packet of %u bytes\n", receivedPacketLength);
+    debugf("received a packet of %u bytes\n", receivedPacketLength);
     
   }
 
@@ -448,14 +610,14 @@ archtesterd_runtest(unsigned int startTtl,
   //
   
   if (!archtesterd_validatepacket(receivedPacket,receivedPacketLength)) {
-    debugf("archtesterd_hops: debug: invalid packet, ignoring\n");
+    debugf("invalid packet, ignoring\n");
   }
   
   if (!archtesterd_packetisforus(receivedPacket,receivedPacketLength,&sourceAddress)) {
-    debugf("archtesterd_hops: debug: packet not for us, ignoring\n");
+    debugf("packet not for us, ignoring\n");
   }
   
-  debugf("archtesterd_hops: debug: packet was for us, taking into account\n");
+  debugf("packet was for us, taking into account\n");
   
   //
   // Done. Return.
@@ -463,6 +625,53 @@ archtesterd_runtest(unsigned int startTtl,
     
 }
 
+static void
+archtesterd_reportStats() {
+  
+  unsigned int nProbes = 0;
+  unsigned int nResponses = 0;
+  unsigned int nEchoReplies = 0;
+  unsigned int nTimeExceededs = 0;
+  unsigned int hopsused[256];
+  unsigned int id;
+  unsigned long shortestDelay = 0xffffffff;
+  unsigned long longestDelay = 0;
+  
+  memset(hopsused,0,sizeof(hopsused));
+  for (id = 0; id < ARCHTESTERD_MAX_PROBES; id++) {
+    struct archtesterd_probe* probe = &probes[id];
+    if (probe->used) {
+      nProbes++;
+      hopsused[probe->hops]++;
+      if (probe->responded) {
+	nResponses++;
+	if (probe->delayUSecs < shortestDelay) shortestDelay = probe->delayUSecs; 
+	if (probe->delayUSecs > longestDelay) longestDelay = probe->delayUSecs; 
+	switch (probe->responseType) {
+	case archtesterd_responseType_echoResponse:
+	  nEchoReplies++;
+	  break;
+	case archtesterd_responseType_timeExceeded:
+	  nTimeExceededs++;
+	  break;
+	default:
+	  fatalf("invalid response type");
+	}
+      }
+    }
+  }
+  
+  printf("\n");
+  printf("Statistics:\n");
+  printf("  %4u    probes sent out\n", nProbes);
+  printf("  %4u    responses received\n", nResponses);
+  printf("  %4u    echo replies received\n", nEchoReplies);
+  printf("  %4u    time exceeded errors received\n", nTimeExceededs);
+  if (nResponses > 0) {
+    printf("  %10.4f shortest response delay\n", ((float)shortestDelay / 1000.0));
+    printf("  %10.4f longest response delay\n", ((float)longestDelay / 1000.0));
+  }
+}
 
 int
 main(int argc,
@@ -479,15 +688,19 @@ main(int argc,
       exit(0);
     } else if (strcmp(argv[0],"-d") == 0) {
       debug = 1;
+    } else if (strcmp(argv[0],"-y") == 0) {
+      statistics = 1;
+    } else if (strcmp(argv[0],"-s") == 0 && argc > 1 && isdigit(argv[1][0])) {
+      icmpDataLength = atoi(argv[1]);
+      argc--; argv++;
     } else if (strcmp(argv[0],"-algorithm") == 0 && argc > 1) {
       if (strcmp(argv[1],"sequential") == 0) {
-	algorithm = algorithms_sequential;
+	algorithm = archtesterd_algorithms_sequential;
       } else if (strcmp(argv[1],"binarysearch") == 0) {
-	algorithm = algorithms_binarysearch;
+	algorithm = archtesterd_algorithms_binarysearch;
       } else {
-	fprintf(stderr,"archtesterd_hops: invalid algorithm value %s (expecting %s) -- exit\n",
-		argv[1], algorithms_string);
-	exit(1);
+	fatalf("invalid algorithm value %s (expecting %s)",
+	       argv[1], archtesterd_algorithms_string);
       }
       argc--; argv++;
     } else if (strcmp(argv[0],"-i") == 0 && argc > 1) {
@@ -496,16 +709,13 @@ main(int argc,
     } else if (strcmp(argv[0],"-t") == 0 && argc > 1) {
       startTtl = atoi(argv[1]);
       if (startTtl <= 0) {
-	fprintf(stderr,"archtesterd_hops: invalid TTL value -- exit\n");
-	exit(1);
+	fatalf("invalid TTL value");
       }
       argc--; argv++;
     } else if (argv[0][0] == '-') {
-      fprintf(stderr,"archtesterd_hops: unrecognised option -- exit\n");
-      exit(1);
+      fatalf("unrecognised option %s", argv[0]);
     } else if (argc > 1) {
-      fprintf(stderr,"archtesterd_hops: too many arguments -- exit\n");
-      exit(1);
+      fatalf("too many arguments");
     } else {
       testDestination = argv[0];
     }
@@ -515,5 +725,10 @@ main(int argc,
   archtesterd_runtest(startTtl,
 		      interface,
 		      testDestination);
+  
+  if (statistics) {
+    archtesterd_reportStats();
+  }
+  
   exit(0);
 }
