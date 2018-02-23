@@ -617,7 +617,8 @@ archtesterd_runtest(unsigned int startTtl,
   //
   // Adjust TTL if needed
   //
-  
+
+  debugf("startTtl %u, maxTtl %u", startTtl, maxTtl);
   if (startTtl > maxTtl) startTtl = maxTtl;
   
   //
@@ -833,6 +834,7 @@ main(int argc,
       argc--; argv++;
     } else if (strcmp(argv[0],"-maxttl") == 0 && argc > 1 && isdigit(argv[1][0])) {
       maxTtl = atoi(argv[1]);
+      debugf("maxTtl set to %u", maxTtl);
       argc--; argv++;
     } else if (strcmp(argv[0],"-algorithm") == 0 && argc > 1) {
       if (strcmp(argv[1],"random") == 0) {
