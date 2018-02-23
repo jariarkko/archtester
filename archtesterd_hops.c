@@ -664,8 +664,8 @@ archtesterd_packetisforus(char* receivedPacket,
     debugf("  inner ip len = %u", ntohs(responseToIpHdr->ip_len));
     debugf("  inner ip id = %u", responseToIpHdr->ip_id);
     debugf("  inner ip offset = %u", responseToIpHdr->ip_off);
-    debugf("  inner icmp type = %u", responseToIcmppHdr->icmp_type);
-    debugf("  inner icmp code = %u", responseToIcmppHdr->icmp_code);
+    debugf("  inner icmp type = %u", responseToIcmpHdr->icmp_type);
+    debugf("  inner icmp code = %u", responseToIcmpHdr->icmp_code);
     if (memcmp(&responseToIpHdr->ip_src,&sourceAddress->sin_addr,sizeof(responseToIpHdr->ip_src)) != 0) return(0);
     debugf("checking that inner packet in the ICMP error was sent to the destination we are testing");
     if (memcmp(&responseToIpHdr->ip_dst,&destinationAddress->sin_addr,sizeof(responseToIpHdr->ip_dst)) != 0) return(0);
