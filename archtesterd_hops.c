@@ -73,8 +73,11 @@ struct archtesterd_probe {
 // Variables
 //
 
+const char* testDestination = "www.google.com";
+const char* interface = "eth0";
 static int debug = 0;
 static int progress = 1;
+static int conclusion = 1;
 static int statistics = 0;
 static unsigned int startTtl = 1;
 static unsigned int maxTtl = 255;
@@ -817,7 +820,7 @@ archtesterd_sendprobes(int sd,
 
   unsigned int sent = 0;
   
-  while (bucket > 0) {
+  while (bucket > 0 && archtesterd_shouldcontinue()) {
     
     struct archtesterd_probe* probe;
     unsigned int packetLength;
@@ -915,6 +918,10 @@ archtesterd_probingprocess(int sd,
   
   debugf("startTtl %u, maxTtl %u", startTtl, maxTtl);
   if (startTtl > maxTtl) {
+    startTtl = maxTtl;
+    debugf("reset startTtl to %u", startTtl);
+  }
+  if (algorithm == archtesterd_algorithms_reversesequential && startTtl < maxTtl) {
     startTtl = maxTtl;
     debugf("reset startTtl to %u", startTtl);
   }
@@ -1063,8 +1070,111 @@ archtesterd_runtest(unsigned int startTtl,
   //
   // Done. Return.
   //
-    
+  
 }
+
+//
+// See if there were any unreachable errors
+//
+
+static unsigned int
+archtesterd_replyresponses() {
+
+  unsigned int count = 0;
+  unsigned int id;
+  
+  for (id = 0; id < ARCHTESTERD_MAX_PROBES; id++) {
+    struct archtesterd_probe* probe = &probes[id];
+    if (probe->used &&
+	probe->responded &&
+	probe->responseType == archtesterd_responseType_echoResponse) {
+      count++;
+    }
+  }
+  
+  return(count);
+}
+
+//
+// See if there were any time exceeded errors
+//
+
+static unsigned int
+archtesterd_timeexceededresponses() {
+
+  unsigned int count = 0;
+  unsigned int id;
+  
+  for (id = 0; id < ARCHTESTERD_MAX_PROBES; id++) {
+    struct archtesterd_probe* probe = &probes[id];
+    if (probe->used &&
+	probe->responded &&
+	probe->responseType == archtesterd_responseType_timeExceeded) {
+      count++;
+    }
+  }
+  
+  return(count);
+}
+
+//
+// See if there were any unreachable errors
+//
+
+static unsigned int
+archtesterd_unreachableresponses() {
+
+  unsigned int count = 0;
+  unsigned int id;
+  
+  for (id = 0; id < ARCHTESTERD_MAX_PROBES; id++) {
+    struct archtesterd_probe* probe = &probes[id];
+    if (probe->used &&
+	probe->responded &&
+	probe->responseType == archtesterd_responseType_destinationUnreachable) {
+      count++;
+    }
+  }
+  
+  return(count);
+}
+
+//
+// Output a conclusion (as much as we know) from the
+// probing process
+//
+
+static void
+archtesterd_reportConclusion() {
+  
+  unsigned int repl = archtesterd_replyresponses();
+  unsigned int exc = archtesterd_timeexceededresponses();
+  unsigned int unreach = archtesterd_unreachableresponses();
+  
+  if (hopsMin == hopsMax) {
+    printf("%s is %u hops away\n", testDestination, hopsMin);
+  } else if (hopsMin == -1 && hopsMax >= maxTtl) {
+    printf("%s is unknown hops away", testDestination);
+  } else {
+    printf("%s is between %u and %u hops away", testDestination, hopsMin, hopsMax);
+  }
+  
+  if (repl == 0 && unreach > 0) {
+    printf(", but may not be reachable\n");
+  } else if (repl > 0 && unreach > 0) {
+    printf(" and reachable, but also gives reachability errors\n");
+  } else if (repl > 0 && unreach == 0) {
+    printf("and reachable\n");
+  } else if (exc > 0) {
+    printf(", not sure if it is reachable\n");
+  } else {
+    printf(", not sure if it is reachable as we got no ICMPs back at all\n");
+  }
+}
+
+//
+// Print out statistics related the process of probing
+//
 
 static void
 archtesterd_reportStats() {
@@ -1147,9 +1257,6 @@ int
 main(int argc,
      char** argv) {
 
-  const char* testDestination = "www.google.com";
-  const char* interface = "eth0";
-
   //
   // Initialize
   //
@@ -1225,6 +1332,10 @@ main(int argc,
   archtesterd_runtest(startTtl,
 		      interface,
 		      testDestination);
+
+  if (conclusion) {
+    archtesterd_reportConclusion();
+  }
   
   if (statistics) {
     archtesterd_reportStats();
