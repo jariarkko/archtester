@@ -605,7 +605,7 @@ archtesterd_validatepacket(char* receivedPacket,
     *responseId = responseToIpHdr->ip_id;
     debugf("using inner id %u in ICMP error", *responseId);
     if (responseToIpHdr->ip_p != IPPROTO_ICMP &&
-	responseToIcmpHdr->icmp_type != IPPROTO_ECHO) {
+	responseToIcmpHdr->icmp_type != ICMP_ECHO) {
       debugf("ICMP error includes some other packet than ICMP ECHO proto = %u icmp code = %u",
 	     responseToIpHdr->ip_p,
 	     responseToIcmpHdr->icmp_type);
