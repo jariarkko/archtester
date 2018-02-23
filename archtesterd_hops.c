@@ -783,9 +783,9 @@ archtesterd_reportStats() {
   printf("\n");
   printf("Statistics:\n");
   printf("\n");
-  printf("  %4u    probes sent out\n", nProbes);
+  printf("  %8u    probes sent out\n", nProbes);
   if (nProbes > 0) {
-    printf("          on TTLs: ");
+    printf("              on TTLs: ");
     seenttl = 0;
     for (ttl = 0; ttl < 256; ttl++) {
       if (hopsused[ttl]) {
@@ -799,15 +799,15 @@ archtesterd_reportStats() {
     }
     printf("\n");
   }
-  printf("%6u    bytes used in the probes\n", probeBytes);
-  printf("  %4u    responses received\n", nResponses);
-  printf("%6u    bytes used in the responses\n", responseBytes);
-  printf("  %4u    echo replies received\n", nEchoReplies);
-  printf("  %4u    destination unreachable errors received\n", nDestinationUnreachables);
-  printf("  %4u    time exceeded errors received\n", nTimeExceededs);
+  printf("%10u    bytes used in the probes\n", probeBytes);
+  printf("  %8u    responses received\n", nResponses);
+  printf("%10u    bytes used in the responses\n", responseBytes);
+  printf("  %8u    echo replies received\n", nEchoReplies);
+  printf("  %8u    destination unreachable errors received\n", nDestinationUnreachables);
+  printf("  %8u    time exceeded errors received\n", nTimeExceededs);
   if (nResponses > 0) {
-    printf("  %10.4f shortest response delay\n", ((float)shortestDelay / 1000.0));
-    printf("  %10.4f longest response delay\n", ((float)longestDelay / 1000.0));
+    printf("%10.4f shortest response delay\n", ((float)shortestDelay / 1000.0));
+    printf("%10.4f longest response delay\n", ((float)longestDelay / 1000.0));
   }
 }
 
