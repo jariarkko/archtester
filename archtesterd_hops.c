@@ -21,6 +21,8 @@
 // Types
 //
 
+typedef uint16_t archtesterd_idtype;
+
 enum archtesterd_algorithms {
   archtesterd_algorithms_random,
   archtesterd_algorithms_sequential,
@@ -35,7 +37,7 @@ enum archtesterd_responseType {
 
 struct archtesterd_probe {
   int used;
-  char id;
+  archtesterd_idtype id;
   unsigned char hops;
   unsigned int probeLength;
   struct timeval sentTime;
@@ -206,7 +208,7 @@ archtesterd_newprobe(char id,
 }
 
 struct archtesterd_probe*
-archtesterd_findprobe(unsigned char id) {
+archtesterd_findprobe(archtesterd_idtype id) {
   
   struct archtesterd_probe* probe = &probes[id];
   
@@ -224,7 +226,7 @@ archtesterd_findprobe(unsigned char id) {
 
 static void
 archtesterd_registerResponse(enum archtesterd_responseType type,
-			     unsigned char id,
+			     archtesterd_idtype id,
 			     unsigned int packetLength) {
 
   //
@@ -279,11 +281,11 @@ archtesterd_registerResponse(enum archtesterd_responseType type,
 // Allocate new identifiers for the different probes
 //
 
-unsigned char
+archtesterd_idtype
 archtesterd_getnewid(unsigned char hops) {
   
-  static unsigned char nextId = 0;
-  unsigned char id;
+  static unsigned int nextId = 0;
+  unsigned int id;
   
   do {
     
@@ -292,7 +294,7 @@ archtesterd_getnewid(unsigned char hops) {
     if (probe->used) continue;
     else return(id);
     
-  } while (id <= 255);
+  } while (id <= 65535);
   
   fatalf("cannot find a new identifier for %u hops", hops);
   return(0);
@@ -416,7 +418,7 @@ archtesterd_checksum(uint16_t* data,
 static void
 archtesterd_constructicmp4packet(struct sockaddr_in* source,
 				 struct sockaddr_in* destination,
-				 unsigned char id,
+				 archtesterd_idtype id,
 				 unsigned char ttl,
 				 unsigned int dataLength,
 				 char** resultPacket,
@@ -445,7 +447,7 @@ archtesterd_constructicmp4packet(struct sockaddr_in* source,
   icmphdr.icmp_type = ICMP_ECHO;
   icmphdr.icmp_code = 0;
   icmphdr.icmp_id = id;
-  icmphdr.icmp_seq = 0;
+  icmphdr.icmp_seq = (uint16_t)(probesSent & 0xFFFF);
   icmphdr.icmp_cksum = 0;
   archtesterd_fillwithstring(data,message,dataLength);
   icmpLength = ICMP4_HDRLEN + dataLength;
@@ -534,7 +536,7 @@ static int
 archtesterd_validatepacket(char* receivedPacket,
 			   int receivedPacketLength,
 			   enum archtesterd_responseType* responseType,
-			   unsigned char* responseId,
+			   archtesterd_idtype* responseId,
 			   struct ip* responseToIpHdr,
 			   struct icmp* responseToIcmpHdr) {
   
@@ -705,12 +707,12 @@ archtesterd_probingprocess(int sd,
   enum archtesterd_responseType responseType;
   struct archtesterd_probe* probe;
   unsigned int packetLength;
-  unsigned char responseId;
+  archtesterd_idtype responseId;
   unsigned int expectedLen;
   int receivedPacketLength;
   char* receivedPacket;
   unsigned char ttl;
-  unsigned char id;
+  archtesterd_idtype id;
   char* packet;
   
   //
