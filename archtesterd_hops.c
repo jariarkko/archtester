@@ -74,6 +74,7 @@ struct archtesterd_probe {
 //
 
 const char* testDestination = "www.google.com";
+struct sockaddr_in testDestinationAddress;
 const char* interface = "eth0";
 static int debug = 0;
 static int progress = 1;
@@ -1035,7 +1036,6 @@ archtesterd_runtest(unsigned int startTtl,
 		    const char* interface,
 		    const char* destination) {
 
-  struct sockaddr_in destinationAddress;
   struct sockaddr_in sourceAddress;
   struct sockaddr_in bindAddress;
   struct ifreq ifr;
@@ -1049,15 +1049,15 @@ archtesterd_runtest(unsigned int startTtl,
   //
   
   archtesterd_getifindex(interface,&ifindex,&ifr,&sourceAddress);
-  archtesterd_getdestinationaddress(destination,&destinationAddress);
-
+  archtesterd_getdestinationaddress(destination,&testDestinationAddress);
+  
   //
   // Debugs
   //
   
   debugf("ifindex = %d", ifindex);
   debugf("source = %s", archtesterd_iptostring(&sourceAddress));
-  debugf("destination = %s", archtesterd_iptostring(&destinationAddress));
+  debugf("destination = %s", archtesterd_iptostring(&testDestinationAddress));
   
   //
   // Get an output raw socket
@@ -1095,7 +1095,7 @@ archtesterd_runtest(unsigned int startTtl,
   // Start the main loop
   //
   
-  archtesterd_probingprocess(sd,rd,&destinationAddress,&sourceAddress,startTtl);
+  archtesterd_probingprocess(sd,rd,&testDestinationAddress,&sourceAddress,startTtl);
   
   //
   // Done. Return.
@@ -1198,14 +1198,15 @@ archtesterd_reportConclusion() {
   unsigned int repl = archtesterd_replyresponses();
   unsigned int exc = archtesterd_timeexceededresponses();
   unsigned int unreach = archtesterd_unreachableresponses();
+  const char* testDestinationAddressString = archtesterd_addrtostring(&testDestinationAddress.sin_addr);
   
+  printf("%s (%s) is ", testDestination, testDestinationAddressString);
   if (hopsMin == hopsMax) {
-    printf("%s is %u hops away", testDestination, hopsMin);
+    printf("%u hops away", hopsMin);
   } else if (hopsMin == -1 && hopsMax >= maxTtl) {
-    printf("%s is unknown hops away", testDestination);
+    printf("unknown hops away");
   } else {
-    printf("%s is between %u and %u hops away",
-	   testDestination,
+    printf("between %u and %u hops away",
 	   hopsMin == -1 ? 0 : hopsMin,
 	   hopsMax);
   }
