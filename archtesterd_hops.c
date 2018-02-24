@@ -11,10 +11,12 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/if_ether.h>
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 #include <errno.h>
 
 //
@@ -86,7 +88,7 @@ static unsigned int maxTtl = 255;
 static unsigned int maxProbes = 50;
 static unsigned int parallel = 1;
 static unsigned int bucket = 0;
-static unsigned int icmpDataLength = 10;
+static unsigned int icmpDataLength = 0;
 static enum archtesterd_algorithms algorithm = archtesterd_algorithms_sequential;
 static struct archtesterd_probe probes[ARCHTESTERD_MAX_PROBES];
 static unsigned int probesSent = 0;
@@ -345,7 +347,7 @@ archtesterd_getnewid(unsigned char hops) {
     if (probe->used) continue;
     else return(id);
     
-  } while (id <= 65535);
+  } while (id <= 65535 && id +1 < ARCHTESTERD_MAX_PROBES);
   
   fatalf("cannot find a new identifier for %u hops", hops);
   return(0);
@@ -830,6 +832,36 @@ archtesterd_reportprogress_received_other() {
 }
 
 //
+// Search for what probes in a given TTL range
+// have not been sent yet
+//
+
+static unsigned int
+archtesterd_probesnotyetsentinrange(unsigned char minTtlValue,
+				    unsigned char maxTtlValue) {
+
+  int ttlsUsed[256];
+  unsigned int count = 0;
+  unsigned int id;
+  unsigned int ttl;
+  
+  memset(ttlsUsed,0,sizeof(ttlsUsed));
+  
+  for (id = 0; id < ARCHTESTERD_MAX_PROBES; id++) {
+    struct archtesterd_probe* probe = &probes[id];
+    if (probe->used) {
+      ttlsUsed[probe->hops] = 1;
+    }
+  }
+  
+  for (ttl = minTtlValue; ttl <= maxTtlValue; ttl++) {
+    if (!ttlsUsed[ttl]) count++;
+  }
+  
+  return(count);
+}
+
+//
 // Can and should we continue the probing?
 //
 
@@ -837,6 +869,7 @@ static int
 archtesterd_shouldcontinue() {
   if (probesSent >= maxProbes) return(0);
   if (hopsMin == hopsMax) return(0);
+  if (!archtesterd_probesnotyetsentinrange(hopsMin+1,hopsMax)) return(0);
   return(1);
 }
 
