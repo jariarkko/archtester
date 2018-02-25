@@ -11,10 +11,15 @@ The tester architecture is configurable and network-driven; the device where the
 
 # Installation
 
-The easiest installation method is to retrieve the software from GitHub:
+The easiest installation method is to retrieve the software from GitHub. There is one dependency on the hopping program, which needs to fetched and compiled first. These commands should suffice:
 
+    git clone https://github.com/jariarkko/hopping.git
+    cd hopping
+    sudo make all install
+    
     git clone https://github.com/jariarkko/archtester.git
-    sudo make install
+    cd archtester
+    sudo make all install
   
 # Projects
 
