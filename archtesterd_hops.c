@@ -19,8 +19,9 @@
 #include <ifaddrs.h>
 #include <errno.h>
 
+
 //
-// Constants for the protocols formats
+// Constants for the protocols formats -------------------------------
 //
 
 #define ARCHTESTERD_IP4_HDRLEN			20
@@ -32,7 +33,7 @@
 
 
 //
-// Types
+// Types -------------------------------------------------------------
 //
 
 typedef uint16_t archtesterd_idtype;
@@ -63,16 +64,21 @@ struct archtesterd_probe {
   enum archtesterd_responseType responseType;
 };
 
-//
-// Constants
-//
-
-#define archtesterd_algorithms_string	"random, sequential, reversesequential, or binarysearch"
-
-#define ARCHTESTERD_MAX_PROBES	       256
 
 //
-// Variables
+// Constants ------------------------------------------------------------
+//
+
+#define archtesterd_algorithms_string	\
+        "random, sequential, reversesequential, or binarysearch"
+
+#define ARCHTESTERD_MAX_PROBES	        256
+#define ARCHTESTERD_POLL_FREQUENCY	10
+#define ARCHTESTERD_POLL_SLEEP_US	((1000 * 1000) /            \
+                                         ARCHTESTERD_POLL_FREQUENCY)
+
+//
+// Variables ------------------------------------------------------------
 //
 
 const char* testDestination = "www.google.com";
@@ -96,19 +102,26 @@ static unsigned char currentTtl = 0;
 static int hopsMin = -1;
 static int hopsMax = 255;
 
+
 //
-// Prototype definitions of functions
+// Prototype definitions of functions ------------------------------------
 //
 
 static void
 archtesterd_reportBriefConclusion(void);
 
+
 //
-// Some helper macros
+// Some helper macros ----------------------------------------------------
 //
 
 #define archtesterd_min(a,b) ((a) < (b) ? (a) : (b))
 #define archtesterd_max(a,b) ((a) > (b) ? (a) : (b))
+
+
+//
+// Functions -------------------------------------------------------------
+//
 
 //
 // Debug helper function
@@ -568,11 +581,32 @@ archtesterd_receivepacket(int sd,
 			  char** result) {
   
   static char packet[IP_MAXPACKET];
+  struct timeval timeout;
   struct sockaddr from;
   socklen_t fromlen;
+  fd_set reads;
+  int selres;
   int bytes;
   
   debugf("waiting for responses");
+  
+  //
+  // Perform a select call to wait for
+  // either a timeout or something on the
+  // raw socket
+  //
+  
+  timeout.tv_sec =0;
+  timeout.tv_usec = ARCHTESTERD_POLL_SLEEP_US;
+  FD_ZERO(&reads);
+  FD_SET(sd,&reads);
+  selres = select(1, &reads, 0, 0, &timeout);
+  
+  //
+  // We have possibly something to receive
+  // (or timeout, in any case, check if there
+  // is something to receive).
+  //
   
   bytes = recvfrom(sd,
 		   packet,
@@ -592,7 +626,8 @@ archtesterd_receivepacket(int sd,
     return(bytes);
     
   } else {
-    
+
+    debugf("nothing to read");
     return(0);
     
   }
