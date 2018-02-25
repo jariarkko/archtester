@@ -580,6 +580,7 @@ archtesterd_receivepacket(int sd,
 			 MSG_DONTWAIT,
 			 (struct sockaddr *) &from,
 			 &fromlen)) < 0) {
+    debugf("bytes %u, errno %u", bytes, errno);
     fatalp("socket() failed to read from the raw socket");
   }
   
