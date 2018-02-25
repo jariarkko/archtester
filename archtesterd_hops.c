@@ -55,8 +55,11 @@ struct archtesterd_probe {
   int used;
   archtesterd_idtype id;
   unsigned char hops;
+  struct archtesterd_probe* previousRetransmission;
+  struct archtesterd_probe* nextRetransmission;
   unsigned int probeLength;
   struct timeval sentTime;
+  struct timeval initialTimeout;
   int responded;
   unsigned int responseLength;
   struct timeval responseTime;
@@ -72,10 +75,13 @@ struct archtesterd_probe {
 #define archtesterd_algorithms_string	\
         "random, sequential, reversesequential, or binarysearch"
 
-#define ARCHTESTERD_MAX_PROBES	        256
-#define ARCHTESTERD_POLL_FREQUENCY	10
-#define ARCHTESTERD_POLL_SLEEP_US	((1000 * 1000) /            \
-                                         ARCHTESTERD_POLL_FREQUENCY)
+#define ARCHTESTERD_MAX_PROBES			        256
+#define ARCHTESTERD_POLL_FREQUENCY			10
+#define ARCHTESTERD_POLL_SLEEP_US			((1000 * 1000) /              \
+                                       			  ARCHTESTERD_POLL_FREQUENCY)
+#define ARCHTESTERD_INITIAL_RETRANSMISSION_TIMEOUT_US	(500 * 1000)
+#define ARCHTESTERD_MAX_RETRANSMISSION_TIMEOUT_US	(20 * 1000 * 1000)
+#define ARCHTESTERD_RETRANSMISSION_BACKOFF_FACTOR	2
 
 //
 // Variables ------------------------------------------------------------
@@ -214,6 +220,15 @@ archtesterd_timediffinusecs(struct timeval* later,
   }
 }
 
+static void
+archtesterd_timeadd(struct timeval* base,
+		    unsigned long us,
+		    struct timeval* result) {
+  unsigned long totalUs = base->tv_usec + us;
+  result->tv_sec = base->tv_sec + totalUs / (1000 * 1000);
+  result->tv_usec = base->tv_usec + totalUs % (1000 * 1000);
+}
+
 //
 // Convert an IPv4 address to string
 //
@@ -230,7 +245,8 @@ archtesterd_addrtostring(struct in_addr* addr) {
 struct archtesterd_probe*
 archtesterd_newprobe(archtesterd_idtype id,
 		     unsigned char hops,
-		     unsigned int probeLength) {
+		     unsigned int probeLength,
+		     struct archtesterd_probe* previousProbe) {
   
   struct archtesterd_probe* probe = &probes[id];
   if (probe->used) {
@@ -245,9 +261,39 @@ archtesterd_newprobe(archtesterd_idtype id,
   probe->hops = hops;
   probe->probeLength = probeLength;
   probe->responded = 0;
+
+  //
+  // Set the current time as the time the probe was sent
+  // (although technically it hasn't been sent yet... but in
+  // few microseconds it will as soon as this function exits).
+  //
   
   if (gettimeofday(&probe->sentTime, 0) < 0) {
     fatalp("cannot determine current time via gettimeofday");
+  }
+
+  //
+  // Figure out if this is a retransmission of a previous probe.
+  
+  probe->nextRetransmission = 0;
+  if (previousProbe == 0) {
+    probe->previousRetransmission = 0;
+    archtesterd_timeadd(&probe->sentTime,
+			ARCHTESTERD_INITIAL_RETRANSMISSION_TIMEOUT_US,
+			&probe->initialTimeout);
+  } else {
+    unsigned long prevTimeout =
+      archtesterd_timediffinusecs(&previousProbe->initialTimeout,
+				  &previousProbe->sentTime);
+    unsigned long newTimeout =
+      prevTimeout * ARCHTESTERD_RETRANSMISSION_BACKOFF_FACTOR;
+    if (newTimeout > ARCHTESTERD_MAX_RETRANSMISSION_TIMEOUT_US)
+      newTimeout = ARCHTESTERD_MAX_RETRANSMISSION_TIMEOUT_US;
+    probe->previousRetransmission = previousProbe;
+    previousProbe->nextRetransmission = probe;
+    archtesterd_timeadd(&probe->sentTime,
+			newTimeout,
+			&probe->initialTimeout);
   }
   
   debugf("registered a probe for id %u, ttl %u", id, hops);
@@ -974,7 +1020,7 @@ archtesterd_sendprobes(int sd,
     
     id = archtesterd_getnewid(currentTtl);
     expectedLen = ARCHTESTERD_IP4_HDRLEN + ARCHTESTERD_ICMP4_HDRLEN + icmpDataLength;
-    probe = archtesterd_newprobe(id,currentTtl,expectedLen);
+    probe = archtesterd_newprobe(id,currentTtl,expectedLen,0);
     if (probe == 0) {
       fatalf("cannot allocate a new probe entry");
     }
