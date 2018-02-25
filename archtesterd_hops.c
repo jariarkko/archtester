@@ -563,17 +563,23 @@ archtesterd_sendpacket(int sd,
 // Receive a packet from the raw socket
 //
 
-static int archtesterd_receivepacket(int sd,
-				     char** result) {
+static int
+archtesterd_receivepacket(int sd,
+			  char** result) {
   
   static char packet[IP_MAXPACKET];
   struct sockaddr from;
   socklen_t fromlen;
   int bytes;
-
+  
   debugf("waiting for responses");
   
-  if ((bytes = recvfrom (sd, packet, sizeof(packet), 0, (struct sockaddr *) &from, &fromlen)) < 0) {
+  if ((bytes = recvfrom (sd,
+			 packet,
+			 sizeof(packet),
+			 MSG_DONTWAIT,
+			 (struct sockaddr *) &from,
+			 &fromlen)) < 0) {
     fatalp("socket() failed to read from the raw socket");
   }
   
@@ -1015,45 +1021,51 @@ archtesterd_probingprocess(int sd,
       
       debugf("received a packet of %u bytes", receivedPacketLength);
       
-    }
-    
-    //
-    // Verify response packet (that it is for us, long enough, etc.)
-    //
-    
-    if (!archtesterd_validatepacket(receivedPacket,
-				    receivedPacketLength,
-				    &responseType,
-				    &responseId,
-				    &responseToIpHdr,
-				    &responseToIcmpHdr)) {
+      //
+      // Verify response packet (that it is for us, long enough, etc.)
+      //
       
-      debugf("invalid packet, ignoring");
-      archtesterd_reportprogress_received_other();
+      if (!archtesterd_validatepacket(receivedPacket,
+				      receivedPacketLength,
+				      &responseType,
+				      &responseId,
+				      &responseToIpHdr,
+				      &responseToIcmpHdr)) {
       
-    } else if (!archtesterd_packetisforus(receivedPacket,
-					  receivedPacketLength,
-					  responseType,
-					  sourceAddress,
-					  destinationAddress,
-					  &responseToIpHdr,
-					  &responseToIcmpHdr)) {
-      
-      debugf("packet not for us, ignoring");
-      archtesterd_reportprogress_received_other();
-      
+	debugf("invalid packet, ignoring");
+	archtesterd_reportprogress_received_other();
+	
+      } else if (!archtesterd_packetisforus(receivedPacket,
+					    receivedPacketLength,
+					    responseType,
+					    sourceAddress,
+					    destinationAddress,
+					    &responseToIpHdr,
+					    &responseToIcmpHdr)) {
+	
+	debugf("packet not for us, ignoring");
+	archtesterd_reportprogress_received_other();
+	
+      } else {
+	
+	debugf("packet was for us, taking into account");
+	
+	//
+	// Register the response into our own database
+	//
+	
+	archtesterd_registerResponse(responseType, responseId, receivedPacketLength, &responseToProbe);
+	archtesterd_reportprogress_received(responseType,
+					    responseId,
+					    responseToProbe != 0 ? 0 : responseToProbe->hops);
+	
+      }
+
     } else {
-      
-      debugf("packet was for us, taking into account");
-      
+
       //
-      // Register the response into our own database
+      // We did not get a packet, but got a timeout instead
       //
-      
-      archtesterd_registerResponse(responseType, responseId, receivedPacketLength, &responseToProbe);
-      archtesterd_reportprogress_received(responseType,
-					  responseId,
-					  responseToProbe != 0 ? 0 : responseToProbe->hops);
       
     }
     
