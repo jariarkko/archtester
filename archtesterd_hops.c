@@ -574,18 +574,28 @@ archtesterd_receivepacket(int sd,
   
   debugf("waiting for responses");
   
-  if ((bytes = recvfrom (sd,
-			 packet,
-			 sizeof(packet),
-			 MSG_DONTWAIT,
-			 (struct sockaddr *) &from,
-			 &fromlen)) < 0) {
+  bytes = recvfrom(sd,
+		   packet,
+		   sizeof(packet),
+		   MSG_DONTWAIT,
+		   (struct sockaddr *) &from,
+		   &fromlen);
+  
+  if (bytes < 0 && errno != EAGAIN) {
+    
     debugf("bytes %u, errno %u", bytes, errno);
     fatalp("socket() failed to read from the raw socket");
-  }
+    
+  } else if (bytes > 0) {
   
-  *result = packet;
-  return(bytes);
+    *result = packet;
+    return(bytes);
+    
+  } else {
+    
+    return(0);
+    
+  }
 }
 
 //
