@@ -2,17 +2,17 @@
 PROGRAMS=	archtester \
 		archtesterd \
 		archtesterd_tlds \
+		archtesterd_tlsver \
 		archtesterd_hops
 
 SOURCES=	archtester \
 		archtesterd \
 		archtesterd_tlds \
+		archtesterd_tlsver.c \
 		archtesterd_hops \
 		Makefile
 
-OBJECTS=
-
-# archtesterd_hops.o
+OBJECTS=	archtesterd_tlsver.o
 
 CFLAGS=		-g
 
@@ -21,11 +21,11 @@ LD=		cc
 
 all:	$(PROGRAMS)
 
-#archtesterd_hops:	$(SOURCES) $(OBJECTS)
-#	$(LD) $(CFLAGS) archtesterd_hops.o -o archtesterd_hops
-#
-#archtesterd_hops.o:	$(SOURCES)
-#	$(CC) $(CFLAGS) -c archtesterd_hops.c
+archtesterd_hops:	$(SOURCES) $(OBJECTS)
+	$(LD) $(CFLAGS) archtesterd_tlsver.o -o archtesterd_tlsver
+
+archtesterd_tlsver.o:	$(SOURCES)
+	$(CC) $(CFLAGS) -c archtesterd_tlsver.c
 
 install:	$(PROGRAMS)
 	apt-get install bc
