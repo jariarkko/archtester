@@ -21,7 +21,7 @@ LD=		cc
 
 all:	$(PROGRAMS)
 
-archtesterd_hops:	$(SOURCES) $(OBJECTS)
+archtesterd_tlsver:	$(SOURCES) $(OBJECTS)
 	$(LD) $(CFLAGS) archtesterd_tlsver.o -o archtesterd_tlsver
 
 archtesterd_tlsver.o:	$(SOURCES)
