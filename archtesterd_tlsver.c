@@ -90,10 +90,16 @@
 // Some helper macros ----------------------------------------------------
 //
 
-#define archtesterd_assert(cond)	if (!(cond)) {                             \
-	                                  fatalf("Assertion failed on %s line %u", \
-        	                                 __FILE__, __LINE__);		   \
+#define archtesterd_assert(cond)	if (!(cond)) {                             	\
+	                                  fatalf("Assertion failed on %s line %u", 	\
+        	                                 __FILE__, __LINE__);		   	\
                 	                }
+#define archtesterd_compareexpectedresult(got,op,expected,what)				\
+  if ((got) op (expected)) {								\
+    warnf("received " what " was unexpected, %u while expecting %u",			\
+	  (got), (expected));								\
+    return(0);										\
+  }
 
 //
 // Configuration parameters and their defaults -----------------
@@ -116,6 +122,26 @@ static struct timeval startTime;
 
 static void
 fatalf(const char* format, ...);
+static int
+archtesterd_getfrombuffer_u8(unsigned char* result,
+			     const unsigned char* buffer,
+			     unsigned int bufferLength,
+			     unsigned int* position);
+static int
+archtesterd_getfrombuffer_u16(unsigned short* result,
+			      const unsigned char* buffer,
+			      unsigned int bufferLength,
+			      unsigned int* position);
+static int
+archtesterd_getfrombuffer_u24(unsigned int* result,
+			      const unsigned char* buffer,
+			      unsigned int bufferLength,
+			      unsigned int* position);
+static int
+archtesterd_getfrombuffer_u32(unsigned int* result,
+			      const unsigned char* buffer,
+			      unsigned int bufferLength,
+			      unsigned int* position);
 
 //
 // Functions -------------------------------------------------------------
@@ -215,7 +241,7 @@ archtesterd_addtobuffer_u8(unsigned char byte,
 			   unsigned int bufferLength,
 			   unsigned int* messageLength) {
   
-  if (*messageLength == bufferLength) fatalf("out of buffer space");
+  if (*messageLength > bufferLength - 1) fatalf("out of buffer space");
   buffer[*messageLength++] = byte;
   
 }
@@ -230,7 +256,7 @@ archtesterd_addtobuffer_u16(unsigned short value,
 			    unsigned int bufferLength,
 			    unsigned int* messageLength) {
   
-  if (*messageLength >= bufferLength - 2) fatalf("out of buffer space");
+  if (*messageLength > bufferLength - 2) fatalf("out of buffer space");
   buffer[*messageLength++] = (unsigned char)((value >> 8) & 0xFF);
   buffer[*messageLength++] = (unsigned char)((value >> 0) & 0xFF);
   
@@ -246,7 +272,7 @@ archtesterd_addtobuffer_u24(unsigned int value,
 			    unsigned int bufferLength,
 			    unsigned int* messageLength) {
   
-  if (*messageLength >= bufferLength - 3) fatalf("out of buffer space");
+  if (*messageLength > bufferLength - 3) fatalf("out of buffer space");
   buffer[*messageLength++] = (unsigned char)((value >> 16) & 0xFF);
   buffer[*messageLength++] = (unsigned char)((value >> 8) & 0xFF);
   buffer[*messageLength++] = (unsigned char)((value >> 0) & 0xFF);
@@ -263,11 +289,166 @@ archtesterd_addtobuffer_u32(unsigned int value,
 			    unsigned int bufferLength,
 			    unsigned int* messageLength) {
   
-  if (*messageLength >= bufferLength - 3) fatalf("out of buffer space");
+  if (*messageLength > bufferLength - 3) fatalf("out of buffer space");
   buffer[*messageLength++] = (unsigned char)((value >> 24) & 0xFF);
   buffer[*messageLength++] = (unsigned char)((value >> 16) & 0xFF);
   buffer[*messageLength++] = (unsigned char)((value >> 8) & 0xFF);
   buffer[*messageLength++] = (unsigned char)((value >> 0) & 0xFF);
+  
+}
+
+//
+// Skip data in the buffer
+//
+
+static int
+archtesterd_getfrombuffer_skipbytes(unsigned int count,
+				    const unsigned char* buffer,
+				    unsigned int bufferLength,
+				    unsigned int* position) {
+  if (*position > (bufferLength-count)) {
+    warnf("not enough bytes in message to skip %u bytes", count);
+    return(0);
+  }
+  
+  *position += count;
+  return(1);
+  
+}
+
+//
+// Skip data in the buffer
+//
+
+static int
+archtesterd_getfrombuffer_skipvector(unsigned int lengthFieldSize,
+				     const unsigned char* buffer,
+				     unsigned int bufferLength,
+				     unsigned int* position) {
+  unsigned char len8;
+  unsigned short len16;
+  unsigned int len32;
+  unsigned int len;
+
+  //
+  // Get length field, in different ways depending on the size of the length fielfd
+  //
+  
+  switch (lengthFieldSize) {
+  case 1:
+    if (!archtesterd_getfrombuffer_u8(&len8,buffer,bufferLength,position)) return(0);
+    len = (unsigned int)len8;
+    break;
+  case 2:
+    if (!archtesterd_getfrombuffer_u16(&len16,buffer,bufferLength,position)) return(0);
+    len = (unsigned int)len16;
+    break;
+  case 3:
+    if (!archtesterd_getfrombuffer_u32(&len32,buffer,bufferLength,position)) return(0);
+    len = (unsigned int)len32;
+    break;
+  case 4:
+    if (!archtesterd_getfrombuffer_u32(&len32,buffer,bufferLength,position)) return(0);
+    len = (unsigned int)len32;
+    break;
+  default:
+    fatalf("unsupported length size", lengthFieldSize);
+    return(0);
+  }
+
+  //
+  // Get actual contents
+  //
+
+  if (!archtesterd_getfrombuffer_skipbytes(len,buffer,bufferLength,position)) return(0);
+
+  //
+  // Success
+  //
+  
+  return(1);
+  
+}
+
+//
+// Get an u8 from a buffer
+//
+
+static int
+archtesterd_getfrombuffer_u8(unsigned char* result,
+			     const unsigned char* buffer,
+			     unsigned int bufferLength,
+			     unsigned int* position) {
+  if (*position > (bufferLength-1)) {
+    warnf("not enough bytes in message to retrieve a byte");
+    return(0);
+  }
+  
+  *result = buffer[(*position)++];
+  return(1);
+  
+}
+
+//
+// Get an u16 from a buffer
+//
+
+static int
+archtesterd_getfrombuffer_u16(unsigned short* result,
+			      const unsigned char* buffer,
+			      unsigned int bufferLength,
+			      unsigned int* position) {
+  if (*position > (bufferLength-2)) {
+    warnf("not enough bytes in message to retrieve a u16");
+    return(0);
+  }
+  
+  *result = ((buffer[(*position)++] << 8) +
+ 	     (buffer[(*position)++] << 0));
+  return(1);
+  
+}
+
+//
+// Get an u24 from a buffer
+//
+
+static int
+archtesterd_getfrombuffer_u24(unsigned int* result,
+			      const unsigned char* buffer,
+			      unsigned int bufferLength,
+			      unsigned int* position) {
+  if (*position > (bufferLength-3)) {
+    warnf("not enough bytes in message to retrieve a u24");
+    return(0);
+  }
+  
+  *result = ((buffer[(*position)++] << 16) +
+	     (buffer[(*position)++] << 8) +
+ 	     (buffer[(*position)++] << 0));
+  return(1);
+  
+}
+
+//
+// Get an u32 from a buffer
+//
+
+static int
+archtesterd_getfrombuffer_u32(unsigned int* result,
+			      const unsigned char* buffer,
+			      unsigned int bufferLength,
+			      unsigned int* position) {
+  if (*position > (bufferLength-4)) {
+    warnf("not enough bytes in message to retrieve a u32");
+    return(0);
+  }
+  
+  *result = ((buffer[(*position)++] << 24) +
+	     (buffer[(*position)++] << 16) +
+	     (buffer[(*position)++] << 8) +
+ 	     (buffer[(*position)++] << 0));
+  return(1);
   
 }
 
@@ -548,6 +729,74 @@ archtesterd_tlsver_makeclienthello(unsigned char* buffer,
 }
 
 //
+// Construct a client hello message
+//
+
+static int
+archtesterd_tlsver_parseserverhello(const unsigned char* message,
+				    unsigned int messageLength) {
+  
+  //
+  //
+  //  struct {
+  //      ProtocolVersion legacy_version = 0x0303;    /* TLS v1.2 */
+  //      Random random;
+  //      opaque legacy_session_id_echo<0..32>;
+  //      CipherSuite cipher_suite;
+  //      uint8 legacy_compression_method = 0;
+  //      Extension extensions<6..2^16-1>;
+  //  } ServerHello;
+  //
+  
+  unsigned int position = 0;
+  unsigned char msgType;
+  unsigned int length;
+  unsigned short legacy_version;
+  
+  //
+  // msg_type
+  //
+  
+  if (!archtesterd_getfrombuffer_u8(&msgType,message,messageLength,&position)) return(0);
+  archtesterd_compareexpectedresult(msgType,==,ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_CLIENT_HELLO,
+				    "message type");
+  
+  //
+  // length
+  //
+  
+  if (!archtesterd_getfrombuffer_u24(&length,message,messageLength,&position)) return(0);
+  archtesterd_compareexpectedresult(length,<=,messageLength,
+				    "message length");
+  
+  //
+  // legacy_version
+  //
+
+  if (!archtesterd_getfrombuffer_u16(&legacy_version,message,messageLength,&position)) return(0);
+  archtesterd_compareexpectedresult(legacy_version,<=,0x0303,
+				    "legacy version");
+  
+  //
+  // random
+  //
+
+  if (!archtesterd_getfrombuffer_skipbytes(ARCHTESTERD_TLSVER_TLS_HELLO_RANDOM_SIZE,message,messageLength,&position)) return(0);
+  
+  //
+  // userid
+  //
+  
+  if (!archtesterd_getfrombuffer_skipvector(1,message,messageLength,&position)) return(0);
+  
+  //
+  // Success
+  //
+  
+  return(1);
+}
+
+//
 // Get current time
 //
 
@@ -611,7 +860,7 @@ archtesterd_tlsver_runtest(const char* destination) {
   if (sock == -1) {
     fatalf("could not create socket");
   }
-
+  
   archtesterd_getdestinationaddress(destination,&server);
   server.sin_port = htons(port);
   
@@ -627,6 +876,7 @@ archtesterd_tlsver_runtest(const char* destination) {
   // Communicate with the server
   //
   
+  archtesterd_tlsver_makeclienthello(sentMessage,sizeof(sentMessage),&sentMessageSize);
   archtesterd_showbytes("sending",sentMessage,sentMessageSize);
   if (send(sock,
 	   (const char*)sentMessage,
@@ -645,7 +895,8 @@ archtesterd_tlsver_runtest(const char* destination) {
   }
   
   archtesterd_showbytes("received",receivedMessage,receivedMessageSize);
-     
+  archtesterd_tlsver_parseserverhello(receivedMessage,receivedMessageSize);
+  
   close(sock);
 
   //
