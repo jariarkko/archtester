@@ -90,18 +90,18 @@
 										 ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET3_COUNT + \
 										 ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET4_COUNT + \
 										 ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET5_COUNT)
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET0_BASE		0x0301
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET0_COUNT		1
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET1_BASE		0x0302
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET1_COUNT		1
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET2_BASE		0x0303
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET2_COUNT		22
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET3_BASE		0x7f00
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET3_COUNT		27
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET4_BASE		0x0401
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET4_COUNT		4
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET5_BASE		0x0501
-#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET5_COUNT		4
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET0_BASE		0x0303
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET0_COUNT		22
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET1_BASE		0x7f00
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET1_COUNT		27
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET2_BASE		0x0401
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET2_COUNT		4
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET3_BASE		0x0501
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET3_COUNT		4
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET4_BASE		0x0302
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET4_COUNT		1
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET5_BASE		0x0301
+#define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET5_COUNT		1
 
 //
 // Suites defined for TLS 1.3:
@@ -397,6 +397,41 @@
 #define ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256	0xCCAD	//	[RFC7905]
 #define ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_RSA_PSK_WITH_CHACHA20_POLY1305_SHA256	0xCCAE	//	[RFC7905]
 
+//
+// Supported froups, from draft-ietf-tls-tls13-26:
+//
+
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_SECP256R1	0x0017
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_SECP384R1	0x0018
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_SECP521R1	0x0019
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_X25519	0x001D
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_X448		0x001E
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE2048	0x0100
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE3072	0x0101
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE4096	0x0102
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE6144	0x0103
+#define ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE8192	0x0104
+
+//
+// Signature algorithms, from draft-ietf-tls-tls13-26:
+//
+
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA256		0x0401
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA384		0x0501
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA512		0x0601
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ECDSA_SECP256R1_SHA256	0x0403
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ECDSA_SECP384R1_SHA384	0x0503
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ECDSA_SECP521R1_SHA512	0x0603
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA256	0x0804
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA384	0x0805
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA512	0x0806
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ED25519			0x0807
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ED448			0x0808
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA256	0x0809
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA384	0x080a
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA512	0x080b
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA1		0x0201
+#define ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ECDSA_SHA1		0x0203
 
 //
 // Version numbers
@@ -472,12 +507,15 @@ static struct archtesterd_tlsver_alert archtesterd_tlsver_alerts[] = {
   {86, "inappropriate_fallback"},
   {90, "user_canceled"},
   {100, "no_renegotiation"},
+  {109, "missing_extension"},
   {110, "unsupported_extension"},
   {111, "certificate_unobtainable"},
   {112, "unrecognized_name"},
   {113, "bad_certificate_status_response"},
   {114, "bad_certificate_hash_value"},
   {115, "unknown_psk_identity"},
+  {116, "certificate_required"},
+  {120, "no_application_protocol"},
   {0, 0}
 };
   
@@ -970,12 +1008,19 @@ archtesterd_tlsver_addciphersuites(unsigned char* buffer,
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,"suite",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,"suite",buffer,bufferLength,messageLength);
   } else {
-    archtesterd_addtobuffer_u16(2*47,"cipher suites length",buffer,bufferLength,messageLength);
+    archtesterd_addtobuffer_u16(2*54,"cipher suites length",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSUITE_TLS_AES_128_GCM_SHA256,"suite",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSUITE_TLS_AES_256_GCM_SHA384,"suite",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSUITE_TLS_CHACHA20_POLY1305_SHA256,"suite",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSUITE_TLS_AES_128_CCM_SHA256,"suite",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSUITE_TLS_AES_128_CCM_8_SHA256,"suite",buffer,bufferLength,messageLength);
+    archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_RSA_WITH_AES_256_GCM_SHA384,"suite",buffer,bufferLength,messageLength);
+    archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_RSA_WITH_AES_256_CCM,"suite",buffer,bufferLength,messageLength);
+    archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,"suite",buffer,bufferLength,messageLength);
+    archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_DH_anon_WITH_AES_128_GCM_SHA256,"suite",buffer,bufferLength,messageLength);
+    archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_DH_RSA_WITH_ARIA_128_GCM_SHA256,"suite",buffer,bufferLength,messageLength);
+    archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_DH_RSA_WITH_CAMELLIA_128_GCM_SHA256,"suite",buffer,bufferLength,messageLength);
+    archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_RSA_WITH_AES_128_CCM,"suite",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_RSA_WITH_RC4_128_MD5,"suite",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_RSA_WITH_RC4_128_SHA,"suite",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_CIPHERSHUITE_OLD_TLS_RSA_WITH_IDEA_CBC_SHA,"suite",buffer,bufferLength,messageLength);
@@ -1044,9 +1089,9 @@ archtesterd_tlsver_addsupportedversionset(unsigned short base,
 					  unsigned char* buffer,
 					  unsigned int bufferLength,
 					  unsigned int* messageLength) {
-  unsigned int i;
+  int i;
   
-  for (i = 0; i < count; i++) {
+  for (i = count - 1; i >= 0; i--) {
     archtesterd_addtobuffer_u16(base + i,"version",buffer,bufferLength,messageLength);
   }
   
@@ -1114,10 +1159,10 @@ archtesterd_tlsver_addsupportedversionsextension(unsigned char* buffer,
   if (compact) {
     archtesterd_addtobuffer_u16(2 * 2 + 1,"versions extension length",buffer,bufferLength,messageLength);
     archtesterd_addtobuffer_u8(2 * 2,"versions length",buffer,bufferLength,messageLength);
-    archtesterd_tlsver_addsupportedversionset(ARCHTESTERD_TLSVER_TLS_HELLO_LEGACY_VERSION_12,
+    archtesterd_tlsver_addsupportedversionset(ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_13,
 					      1,
 					      buffer,bufferLength,messageLength);
-    archtesterd_tlsver_addsupportedversionset(ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_13,
+    archtesterd_tlsver_addsupportedversionset(ARCHTESTERD_TLSVER_TLS_HELLO_LEGACY_VERSION_12,
 					      1,
 					      buffer,bufferLength,messageLength);
   } else {
@@ -1147,6 +1192,124 @@ archtesterd_tlsver_addsupportedversionsextension(unsigned char* buffer,
 }
 
 //
+// Add signature algorithms extension to the message
+//
+
+static void
+archtesterd_tlsver_addsignaturealgorithmsextension(unsigned char* buffer,
+						   unsigned int bufferLength,
+						   unsigned int* messageLength) {
+
+  //
+  //  enum {
+  //      /* RSASSA-PKCS1-v1_5 algorithms */
+  //      rsa_pkcs1_sha256(0x0401),
+  //      rsa_pkcs1_sha384(0x0501),
+  //      rsa_pkcs1_sha512(0x0601),
+  //
+  //      /* ECDSA algorithms */
+  //      ecdsa_secp256r1_sha256(0x0403),
+  //      ecdsa_secp384r1_sha384(0x0503),
+  //      ecdsa_secp521r1_sha512(0x0603),
+  //
+  //      /* RSASSA-PSS algorithms with public key OID rsaEncryption */
+  //      rsa_pss_rsae_sha256(0x0804),
+  //      rsa_pss_rsae_sha384(0x0805),
+  //      rsa_pss_rsae_sha512(0x0806),
+  //     
+  //      /* EdDSA algorithms */
+  //      ed25519(0x0807),
+  //      ed448(0x0808),
+  //
+  //      /* RSASSA-PSS algorithms with public key OID RSASSA-PSS */
+  //      rsa_pss_pss_sha256(0x0809),
+  //      rsa_pss_pss_sha384(0x080a),
+  //      rsa_pss_pss_sha512(0x080b),
+  //   
+  //      /* Legacy algorithms */
+  //      rsa_pkcs1_sha1(0x0201),
+  //      ecdsa_sha1(0x0203),
+  //   
+  //      /* Reserved Code Points */
+  //      private_use(0xFE00..0xFFFF),
+  //      (0xFFFF)
+  //  } SignatureScheme;
+  //  
+  //  struct {
+  //      SignatureScheme supported_signature_algorithms<2..2^16-2>;
+  //  } SignatureSchemeList;
+  //
+  
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_EXTENSION_SIGNATURE_ALGORITHMS,"signature algorithms extension",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(2 * 16 + 2,"signature algorithms extension length",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(2 * 16,"signature algorithms length",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA256,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA384,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA512,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ECDSA_SECP256R1_SHA256,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ECDSA_SECP384R1_SHA384,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ECDSA_SECP521R1_SHA512,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA256,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA384,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_RSAE_SHA512,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ED25519,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ED448,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA256,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA384,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PSS_PSS_SHA512,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_RSA_PKCS1_SHA1,"signature algorithm",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SIGNATURE_ALGORITHM_ECDSA_SHA1,"signature algorithm",buffer,bufferLength,messageLength);
+  
+}
+
+//
+// Add supported groups extension to the message
+//
+
+static void
+archtesterd_tlsver_addsupportedgroupsextension(unsigned char* buffer,
+					       unsigned int bufferLength,
+					       unsigned int* messageLength) {
+  //     
+  //   enum {
+  //     
+  //      /* Elliptic Curve Groups (ECDHE) */
+  //      secp256r1(0x0017), secp384r1(0x0018), secp521r1(0x0019),
+  //      x25519(0x001D), x448(0x001E),
+  //     
+  //      /* Finite Field Groups (DHE) */
+  //      ffdhe2048(0x0100), ffdhe3072(0x0101), ffdhe4096(0x0102),
+  //      ffdhe6144(0x0103), ffdhe8192(0x0104),
+  //     
+  //      /* Reserved Code Points */
+  //      ffdhe_private_use(0x01FC..0x01FF),
+  //      ecdhe_private_use(0xFE00..0xFEFF),
+  //      (0xFFFF)
+  //  } NamedGroup;
+  //     
+  //  struct {
+  //      NamedGroup named_group_list<2..2^16-1>;
+  //  } NamedGroupList;
+  //
+  
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_GROUPS,"supported groups extension",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(2 * 10 + 2,"supported groups extension length",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(2 * 10,"supported groups length",buffer,bufferLength,messageLength);
+  
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_SECP256R1,    "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_SECP384R1,    "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_SECP521R1,    "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_X25519,       "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_X448,	       "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE2048,    "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE3072,    "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE4096,    "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE6144,    "supported group",buffer,bufferLength,messageLength);
+  archtesterd_addtobuffer_u16(ARCHTESTERD_TLSVER_SUPPORTED_GROUP_FFDHE8192,    "supported group",buffer,bufferLength,messageLength);
+  
+}
+ 
+//
 // Add extensions to the message
 //
 
@@ -1159,6 +1322,8 @@ archtesterd_tlsver_addextensions(unsigned char* buffer,
   
   archtesterd_addtobuffer_u16(0,"extensions length",buffer,bufferLength,messageLength);
   archtesterd_tlsver_addsupportedversionsextension(buffer,bufferLength,messageLength);
+  archtesterd_tlsver_addsignaturealgorithmsextension(buffer,bufferLength,messageLength);
+  archtesterd_tlsver_addsupportedgroupsextension(buffer,bufferLength,messageLength);
   
   //
   // Now that we are done for the content, go back and put in the appropriate value
@@ -1399,7 +1564,7 @@ archtesterd_tlsver_parseserverhello(const unsigned char* message,
   
   if (!archtesterd_getfrombuffer_u8(&msg_type,message,messageLength,&position)) return(0);
   debugf("parseserverhello: msg_type = %x", msg_type);
-  archtesterd_compareexpectedresult(msg_type,==,ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_CLIENT_HELLO,
+  archtesterd_compareexpectedresult(msg_type,==,ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_SERVER_HELLO,
 				    "message type");
   
   //
