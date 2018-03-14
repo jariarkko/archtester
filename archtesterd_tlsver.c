@@ -19,7 +19,16 @@
 #include <errno.h>
 
 //
-// Protocol constants
+// Type definitions --------------------------------------------------------------------------------
+//
+
+struct archtesterd_tlsver_numstring {
+  unsigned char id;
+  const char* text;
+};
+
+//
+// Protocol constants ------------------------------------------------------------------------------
 //
 
 //
@@ -56,6 +65,23 @@
 #define ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_KEY_UPDATE			 24
 #define ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_MESSAGE_HASH		254
 
+static struct archtesterd_tlsver_numstring archtesterd_tlsver_messages[] = {
+  {1, "client_hello"},
+  {2, "server_hello"},
+  {4, "new_session_ticket"},
+  {5, "end_of_early_data"},
+  {8, "encrypted_extensions"},
+  {11, "certificate"},
+  {13, "certificate_request"},
+  {15, "certificate_verify"},
+  {20, "finished"},
+  {21, "certificate_url"},
+  {22, "certificate_status"},
+  {24, "key_update"},
+  {254, "message_hash"},
+  {0, 0},
+};
+
 #define ARCHTESTERD_TLSVER_TLS_HELLO_RANDOM_SIZE		         32
 #define ARCHTESTERD_TLSVER_TLS_HELLO_SESSION_ID_SIZE_MAX	         32
 #define ARCHTESTERD_TLSVER_TLS_HELLO_CIPHERSUITE		          0 /* ... */
@@ -84,6 +110,32 @@
 #define ARCHTESTERD_TLSVER_EXTENSION_SIGNATURE_ALGORITHMS_CERT			50
 #define ARCHTESTERD_TLSVER_EXTENSION_KEY_SHARE					51
 
+static struct archtesterd_tlsver_numstring archtesterd_tlsver_extensions[] = {
+  {0, "server_name"},
+  {1, "max_fragment_length"},
+  {5, "status_request"},
+  {10, "supported_groups"},
+  {13, "signature_algorithms"},	
+  {14, "use_srtp"},	
+  {15, "heartbeat"},	
+  {16, "application_layer_protocol_negotiation"},
+  {18, "signed_certificate_timestamp"},
+  {19, "client_certificate_type"},	
+  {20, "server_certificate_type"},	
+  {21, "padding"},	
+  {41, "pre_shared_key"},
+  {42, "early_data"},	
+  {43, "supported_versions"},
+  {44, "cookie"},	
+  {45, "psk_key_exchange_modes"},	
+  {74, "certificate_authorities"},	
+  {48, "oid_filters"},
+  {49, "post_handshake_auth"},	
+  {50, "signature_algorithms_cert"},	
+  {51, "key_share"},
+  {0, 0},
+};
+  
 #define ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_N			(ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET0_COUNT + \
 										 ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET1_COUNT + \
 										 ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS_SET2_COUNT + \
@@ -470,18 +522,16 @@
 #define ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_13		     0x0304
 #define ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_13_IS_DRAFT(v)	     (((v)&0xff00) == 0x7f00)
 #define ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_13_DRAFT_VER(v)     (((v)&0x00ff))
+#define ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_IS_VALID(v)	     (((v)>>8) >= 0x03 && ((v)&0xFF) >= 0x01)
+#define ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_MAJOR(v)	     (((v)>>8) - 2)
+#define ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_MINOR(v)	     (((v)&0xFF) - 1)
 
 //
 // TLS alerts, taken from IANA TLS registry
 // (https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml)
 //
 
-struct archtesterd_tlsver_alert {
-  unsigned char description;
-  const char* text;
-};
-
-static struct archtesterd_tlsver_alert archtesterd_tlsver_alerts[] = {
+static struct archtesterd_tlsver_numstring archtesterd_tlsver_alerts[] = {
   {0, "close_notify"},
   {10, "unexpected_message"},
   {20, "bad_record_mac"},
@@ -520,13 +570,13 @@ static struct archtesterd_tlsver_alert archtesterd_tlsver_alerts[] = {
 };
   
 //
-// Capacity, size, etc. definitions
+// Capacity, size, etc. definitions -----------------------------------------------------
 //
 
-#define ARCHTESTERD_TLSVER_MAXMSGSIZE	1000
+#define ARCHTESTERD_TLSVER_MAXMSGSIZE	5000
 
 //
-// Some helper macros ----------------------------------------------------
+// Some helper macros -------------------------------------------------------------------
 //
 
 #define archtesterd_assert(cond)	if (!(cond)) {                             	\
@@ -542,12 +592,14 @@ static struct archtesterd_tlsver_alert archtesterd_tlsver_alerts[] = {
   }
 
 //
-// Configuration parameters and their defaults -----------------
+// Configuration parameters and their defaults --------------------------------------------
 //
 
 const char* testDestination = "www.google.com";
 unsigned int port = 443;
 int debug = 0;
+int quiet = 0;
+int draft = 1;
 int compact = 0;
 
 //
@@ -555,6 +607,9 @@ int compact = 0;
 //
 
 static int interrupt = 0;
+static unsigned short version_record = 0;
+static unsigned short version_hello = 0;
+static unsigned short version_supported = 0;
 static struct timeval startTime;
 
 //
@@ -563,6 +618,9 @@ static struct timeval startTime;
 
 static void
 fatalf(const char* format, ...);
+static unsigned int
+archtesterd_bufferremaining(unsigned int bufferLength,
+			    unsigned int* position);
 static int
 archtesterd_getfrombuffer_u8(unsigned char* result,
 			     const unsigned char* buffer,
@@ -617,16 +675,21 @@ debugf(const char* format, ...) {
 
 static void
 warnf(const char* format, ...) {
-  
+
   va_list args;
   
   archtesterd_assert(format != 0);
+
+  if (!quiet) {
+    
+    fprintf(stderr,"archtesterd_tlsver: warning: ");
+    va_start (args, format);
+    vfprintf(stderr, format, args);
+    va_end (args);
+    fprintf(stderr,"\n");
+    
+  }
   
-  fprintf(stderr,"archtesterd_tlsver: warning: ");
-  va_start (args, format);
-  vfprintf(stderr, format, args);
-  va_end (args);
-  fprintf(stderr,"\n");
 }
 
 //
@@ -640,11 +703,15 @@ fatalf(const char* format, ...) {
   
   archtesterd_assert(format != 0);
   
-  fprintf(stderr,"archtesterd_tlsver: error: ");
-  va_start (args, format);
-  vfprintf(stderr, format, args);
-  va_end (args);
-  fprintf(stderr," -- exit\n");
+  if (!quiet) {
+    
+    fprintf(stderr,"archtesterd_tlsver: error: ");
+    va_start (args, format);
+    vfprintf(stderr, format, args);
+    va_end (args);
+    fprintf(stderr," -- exit\n");
+    
+  }
   
   exit(1);
 }
@@ -789,17 +856,25 @@ archtesterd_addtobuffer_u32(unsigned int value,
   debugf("  %s: %08x", what, value);
 }
 
+static unsigned int
+archtesterd_bufferremaining(unsigned int bufferLength,
+			    unsigned int* position) {
+  archtesterd_assert(*position <= bufferLength);
+  return(bufferLength - *position);
+}
+
 //
 // Skip data in the buffer
 //
 
 static int
 archtesterd_getfrombuffer_skipbytes(unsigned int count,
+				    const char* what,
 				    const unsigned char* buffer,
 				    unsigned int bufferLength,
 				    unsigned int* position) {
-  if (*position > (bufferLength-count)) {
-    warnf("not enough bytes in message to skip %u bytes", count);
+  if (archtesterd_bufferremaining(bufferLength,position) < count) {
+    warnf("not enough bytes in message to skip %u bytes for %s", count, what);
     return(0);
   }
   
@@ -852,7 +927,7 @@ archtesterd_getfrombuffer_skipvector(unsigned int lengthFieldSize,
   // Get actual contents
   //
 
-  if (!archtesterd_getfrombuffer_skipbytes(len,buffer,bufferLength,position)) return(0);
+  if (!archtesterd_getfrombuffer_skipbytes(len,"a vector",buffer,bufferLength,position)) return(0);
 
   //
   // Success
@@ -871,7 +946,7 @@ archtesterd_getfrombuffer_u8(unsigned char* result,
 			     const unsigned char* buffer,
 			     unsigned int bufferLength,
 			     unsigned int* position) {
-  if (*position > (bufferLength-1)) {
+  if (archtesterd_bufferremaining(bufferLength,position) < 1) {
     warnf("not enough bytes in message to retrieve a byte");
     return(0);
   }
@@ -890,7 +965,7 @@ archtesterd_getfrombuffer_u16(unsigned short* result,
 			      const unsigned char* buffer,
 			      unsigned int bufferLength,
 			      unsigned int* position) {
-  if (*position > (bufferLength-2)) {
+  if (archtesterd_bufferremaining(bufferLength,position) < 2) {
     warnf("not enough bytes in message to retrieve a u16");
     return(0);
   }
@@ -910,7 +985,7 @@ archtesterd_getfrombuffer_u24(unsigned int* result,
 			      const unsigned char* buffer,
 			      unsigned int bufferLength,
 			      unsigned int* position) {
-  if (*position > (bufferLength-3)) {
+  if (archtesterd_bufferremaining(bufferLength,position) < 3) {
     warnf("not enough bytes in message to retrieve a u24");
     return(0);
   }
@@ -931,7 +1006,7 @@ archtesterd_getfrombuffer_u32(unsigned int* result,
 			      const unsigned char* buffer,
 			      unsigned int bufferLength,
 			      unsigned int* position) {
-  if (*position > (bufferLength-4)) {
+  if (archtesterd_bufferremaining(bufferLength,position) < 4) {
     warnf("not enough bytes in message to retrieve a u32");
     return(0);
   }
@@ -1479,6 +1554,52 @@ archtesterd_tlsver_makeclienthello(unsigned char* buffer,
 }
 
 //
+// Fetch a descriptive text relating to the id
+// given in a TLS message type.
+//
+
+static const char*
+archtesterd_tlsver_getmessagetext(unsigned char id) {
+  
+  unsigned int i;
+  
+  for (i = 0; archtesterd_tlsver_messages[i].text != 0; i++) {
+    if (id == archtesterd_tlsver_messages[i].id) {
+      return(archtesterd_tlsver_messages[i].text);
+    }
+  }
+  
+  //
+  // Not found, return a generic value
+  //
+
+  return("unrecognised_extension");
+}
+
+//
+// Fetch a descriptive text relating to the id
+// given in a TLS extension.
+//
+
+static const char*
+archtesterd_tlsver_getextensiontext(unsigned char id) {
+  
+  unsigned int i;
+  
+  for (i = 0; archtesterd_tlsver_extensions[i].text != 0; i++) {
+    if (id == archtesterd_tlsver_extensions[i].id) {
+      return(archtesterd_tlsver_extensions[i].text);
+    }
+  }
+  
+  //
+  // Not found, return a generic value
+  //
+
+  return("unrecognised_extension");
+}
+
+//
 // Fetch a descriptive text relating to the "description"
 // given in a TLS alert.
 //
@@ -1489,7 +1610,7 @@ archtesterd_tlsver_getalerttext(unsigned char description) {
   unsigned int i;
   
   for (i = 0; archtesterd_tlsver_alerts[i].text != 0; i++) {
-    if (description == archtesterd_tlsver_alerts[i].description) {
+    if (description == archtesterd_tlsver_alerts[i].id) {
       return(archtesterd_tlsver_alerts[i].text);
     }
   }
@@ -1500,14 +1621,132 @@ archtesterd_tlsver_getalerttext(unsigned char description) {
 
   return("unrecognised_alert");
 }
-  
+
 //
-// Construct a client hello message
+// Parse ServerHello extension
+//
+
+static int
+archtesterd_tlsver_parseextension(const unsigned char* message,
+                                  unsigned int messageLength,
+                                  unsigned int* position) {
+
+  unsigned short extension;
+  unsigned short length;
+      
+  //
+  // Extension ID
+  //
+
+  if (!archtesterd_getfrombuffer_u16(&extension,message,messageLength,position)) return(0);
+  debugf("parseextension: extension = %x", length);
+
+  //
+  // Length
+  //
+  
+  if (!archtesterd_getfrombuffer_u16(&length,message,messageLength,position)) return(0);
+  debugf("parseextension: length = %x", length);
+  if (archtesterd_bufferremaining(messageLength,position) < length) {
+    debugf("parseextension: remaining bytes in message = %u", archtesterd_bufferremaining(messageLength,position));
+    warnf("extension extends beyond end of the message");
+    return(0);
+  }
+
+  //
+  // Look at specific extensions
+  //
+
+  switch (extension) {
+
+    case ARCHTESTERD_TLSVER_EXTENSION_SUPPORTED_VERSIONS:
+
+      //
+      // Supported_versions extension
+      //
+      
+      if (length != 2) {
+        warnf("ServerHello SupportedVersions extension length %u is incorrect", length);
+	return(0);
+      }
+      
+      if (!archtesterd_getfrombuffer_u16(&version_supported,message,messageLength,position)) return(0);
+      debugf("parseextension: supported version = %x", version_supported);
+      
+      break;
+      
+    default:
+      
+      //
+      // Otherwise, just skip
+      //
+      
+      debugf("skipping %u bytes extension (%s)", length, archtesterd_tlsver_getextensiontext(extension));
+      if (!archtesterd_getfrombuffer_skipbytes(length,"unrecognised extension",message,messageLength,position)) return(0);
+  }
+  
+  //
+  // Ok
+  //
+  
+  return(1);
+}
+
+//
+// Parse ServerHello extensions
+//
+
+static int
+archtesterd_tlsver_parseextensions(const unsigned char* message,
+                                   unsigned int messageLength,
+                                   unsigned int* position) {
+
+  unsigned short length;
+      
+  //
+  // Length
+  //
+
+  if (!archtesterd_getfrombuffer_u16(&length,message,messageLength,position)) return(0);
+  debugf("parseextensions: length = %x", length);
+  if (length > archtesterd_bufferremaining(messageLength,position)) {
+      debugf("parseextensions: remaining bytes in message = %u", archtesterd_bufferremaining(messageLength,position));
+      warnf("extensions extend beyond message length");
+      return(0);
+  }
+  
+  //
+  // Loop through the extensions
+  //
+  
+  while (length >= 4) {
+      
+      unsigned int positionBefore = *position;
+      if (!archtesterd_tlsver_parseextension(message,messageLength,position)) return(0);
+      length -= (*position) - positionBefore;
+      
+  }
+  
+  if (archtesterd_bufferremaining(messageLength,position) > 0) {
+      warnf("remaining bytes after extension -- ignored");
+  }
+  
+  //
+  // Ok
+  //
+
+  return(1);
+}
+
+//
+// Parse a server hello message
 //
 
 static int
 archtesterd_tlsver_parseserverhello(const unsigned char* message,
-				    unsigned int messageLength) {
+                                    unsigned int messageLength,
+                                    unsigned int recordEndPosition,
+	                            unsigned int* position) {
   
   //
   //
@@ -1520,34 +1759,112 @@ archtesterd_tlsver_parseserverhello(const unsigned char* message,
   //      Extension extensions<6..2^16-1>;
   //  } ServerHello;
   //
+  //
+  // legacy_version
+  //
   
-  unsigned int position = 0;
+  unsigned short cipher_suite;
+  unsigned char compression_method;
+
+  if (!archtesterd_getfrombuffer_u16(&version_hello,message,messageLength,position)) return(0);
+  debugf("parseserverhello: legacy_version = %x", version_hello);
+  archtesterd_compareexpectedresult(version_hello,<=,ARCHTESTERD_TLSVER_TLS_HELLO_LEGACY_VERSION_12,
+				    "legacy version");
+  
+  //
+  // random
+  //
+  
+  if (!archtesterd_getfrombuffer_skipbytes(ARCHTESTERD_TLSVER_TLS_HELLO_RANDOM_SIZE,"random",message,messageLength,position)) return(0);
+  
+  //
+  // userid
+  //
+  
+  if (!archtesterd_getfrombuffer_skipvector(1,message,messageLength,position)) return(0);
+
+  //
+  // cipher_suite
+  //
+  
+  if (!archtesterd_getfrombuffer_u16(&cipher_suite,message,messageLength,position)) return(0);
+  debugf("parseserverhello: cipher suite = %x", cipher_suite);
+  
+  //
+  // compression_method
+  //
+  
+  if (!archtesterd_getfrombuffer_u8(&compression_method,message,messageLength,position)) return(0);
+  debugf("parseserverhello: compression_method = %x", compression_method);
+
+  //
+  // extensions
+  //
+
+  debugf("seeing if there are extensions, position %u record end position %u", *position, recordEndPosition);
+  if ((*position) < recordEndPosition) {
+    if (!archtesterd_tlsver_parseextensions(message,messageLength,position)) return(0);
+  }
+  
+  //
+  // Success
+  //
+  
+  return(1);
+}
+
+//
+// Parse a server TLS record layer message
+//
+  
+static int
+archtesterd_tlsver_parseservermessage(const unsigned char* message,
+                                      unsigned int messageLength,
+	                              unsigned int* position) {
+  
+  //
+  //
+  //  struct {
+  //      ProtocolVersion legacy_version = 0x0303;    /* TLS v1.2 */
+  //      Random random;
+  //      opaque legacy_session_id_echo<0..32>;
+  //      CipherSuite cipher_suite;
+  //      uint8 legacy_compression_method = 0;
+  //      Extension extensions<6..2^16-1>;
+  //  } ServerHello;
+  //
+
+  unsigned int remainingMessageLength = archtesterd_bufferremaining(messageLength,position);
   unsigned char record_layer_content_type;
-  unsigned short record_layer_version;
   unsigned short record_layer_length;
   unsigned char msg_type;
   unsigned int length;
-  unsigned short legacy_version;
   unsigned char alert_level;
   unsigned char alert_description;
+  unsigned int recordEndPosition;
   
   //
   // Record layer: content_type, version, and length
   //
   
-  if (!archtesterd_getfrombuffer_u8(&record_layer_content_type,message,messageLength,&position)) return(0);
-  debugf("parseserverhello: content_type = %x", record_layer_content_type);
-
-  if (!archtesterd_getfrombuffer_u16(&record_layer_version,message,messageLength,&position)) return(0);
-  debugf("parseserverhello: record layer version = %x", record_layer_version);
+  if (remainingMessageLength < 5) {
+      debugf("not enough bytes for TLS record layer header");
+      return(0);
+  }
   
-  if (!archtesterd_getfrombuffer_u16(&record_layer_length,message,messageLength,&position)) return(0);
-  debugf("parseserverhello: record layer length = %x", length);
+  if (!archtesterd_getfrombuffer_u8(&record_layer_content_type,message,messageLength,position)) return(0);
+  debugf("parseservermessage: content_type = %x", record_layer_content_type);
+
+  if (!archtesterd_getfrombuffer_u16(&version_record,message,messageLength,position)) return(0);
+  debugf("parseservermessage: record layer version = %x", version_record);
+  
+  if (!archtesterd_getfrombuffer_u16(&record_layer_length,message,messageLength,position)) return(0);
+  debugf("parseservermessage: record layer length = %x", record_layer_length);
   
   switch (record_layer_content_type) {
   case ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_ALERT:
-    if (!archtesterd_getfrombuffer_u8(&alert_level,message,messageLength,&position)) return(0);
-    if (!archtesterd_getfrombuffer_u8(&alert_description,message,messageLength,&position)) return(0);
+    if (!archtesterd_getfrombuffer_u8(&alert_level,message,messageLength,position)) return(0);
+    if (!archtesterd_getfrombuffer_u8(&alert_description,message,messageLength,position)) return(0);
     fatalf("TLS Alert %u.%u (%s) received", alert_level, alert_description, archtesterd_tlsver_getalerttext(alert_description));
     break;
   default:
@@ -1555,15 +1872,15 @@ archtesterd_tlsver_parseserverhello(const unsigned char* message,
 				      "record layer content type");
   }
   
-  archtesterd_compareexpectedresult(record_layer_length,<=,messageLength,
+  archtesterd_compareexpectedresult(record_layer_length,<=,remainingMessageLength - 5,
 				    "record layer length");
   
   //
   // msg_type
   //
   
-  if (!archtesterd_getfrombuffer_u8(&msg_type,message,messageLength,&position)) return(0);
-  debugf("parseserverhello: msg_type = %x", msg_type);
+  if (!archtesterd_getfrombuffer_u8(&msg_type,message,messageLength,position)) return(0);
+  debugf("parseservermessage: msg_type = %x (%s)", msg_type, archtesterd_tlsver_getmessagetext(msg_type));
   archtesterd_compareexpectedresult(msg_type,==,ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_SERVER_HELLO,
 				    "message type");
   
@@ -1571,31 +1888,34 @@ archtesterd_tlsver_parseserverhello(const unsigned char* message,
   // length
   //
   
-  if (!archtesterd_getfrombuffer_u24(&length,message,messageLength,&position)) return(0);
-  debugf("parseserverhello: length = %x", length);
+  if (!archtesterd_getfrombuffer_u24(&length,message,messageLength,position)) return(0);
+  debugf("parseservermessage: length = %x", length);
   archtesterd_compareexpectedresult(length,<=,messageLength,
 				    "message length");
+  recordEndPosition = (*position) + length;
   
-  //
-  // legacy_version
-  //
+  switch (msg_type) {
+    case ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_SERVER_HELLO:
+      return(archtesterd_tlsver_parseserverhello(message,
+                                                 messageLength,
+                                                 recordEndPosition,
+                                                 position));
+    default:
+      debugf("skipping message %u (%s)", archtesterd_tlsver_getmessagetext(msg_type));
+      return(archtesterd_getfrombuffer_skipbytes(length,"unrecognised extension",message,recordEndPosition,position));
+    }
+}
 
-  if (!archtesterd_getfrombuffer_u16(&legacy_version,message,messageLength,&position)) return(0);
-  debugf("parseserverhello: legacy_version = %x", legacy_version);
-  archtesterd_compareexpectedresult(legacy_version,<=,ARCHTESTERD_TLSVER_TLS_HELLO_LEGACY_VERSION_12,
-				    "legacy version");
-  
-  //
-  // random
-  //
+//
+// Parse a server messages (maybe several in one chunk of data)
+//
 
-  if (!archtesterd_getfrombuffer_skipbytes(ARCHTESTERD_TLSVER_TLS_HELLO_RANDOM_SIZE,message,messageLength,&position)) return(0);
+static int
+archtesterd_tlsver_parseservermessages(const unsigned char* message,
+	                               unsigned int messageLength) {
+  unsigned int position = 0;
   
-  //
-  // userid
-  //
-  
-  if (!archtesterd_getfrombuffer_skipvector(1,message,messageLength,&position)) return(0);
+  while (archtesterd_tlsver_parseservermessage(message,messageLength,&position));
   
   //
   // Success
@@ -1656,6 +1976,45 @@ archtesterd_addrtostring(struct in_addr* addr) {
   return(inet_ntoa(*addr));
 }
 
+static const char*
+archtesterd_tlsver_versiontostring(unsigned short version) {
+  static char buf[40];
+  
+  if (version == 0) {
+      
+    sprintf(buf,"unknown");
+
+  } else if (!ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_IS_VALID(version)) {
+
+    sprintf(buf,"unknown");
+
+  } else if (ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_13_IS_DRAFT(version)) {
+    
+    if (draft) {
+      sprintf(buf,"1.3 draft %u", ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_13_DRAFT_VER(version));
+    } else {
+      sprintf(buf,"1.3");
+    }
+    
+  } else {
+    
+    unsigned char majorver = ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_MAJOR(version);
+    unsigned char minorver = ARCHTESTERD_TLSVER_TLS_HELLO_TLS_VERSION_MINOR(version);
+    sprintf(buf,"%u.%u", majorver, minorver);
+    
+  }
+  
+  return(buf);
+}
+ 
+static unsigned short
+archtesterd_tlsver_getversion() {
+  if (version_supported != 0) return(version_supported);
+  if (version_hello != 0) return(version_hello);
+  if (version_record != 0) return(version_record);
+  return(0);
+}
+ 
 //
 // Run the actual probing
 //
@@ -1717,15 +2076,15 @@ archtesterd_tlsver_runtest(const char* destination) {
   }
   
   archtesterd_showbytes("received",receivedMessage,receivedMessageSize);
-  archtesterd_tlsver_parseserverhello(receivedMessage,receivedMessageSize);
+  archtesterd_tlsver_parseservermessages(receivedMessage,receivedMessageSize);
   
   close(sock);
 
   //
-  // Return without knowledge of what version this was
+  // Return with knowledge of what version this was
   //
   
-  return(0);
+  return(archtesterd_tlsver_versiontostring(archtesterd_tlsver_getversion()));
 }
 
 //
@@ -1760,6 +2119,14 @@ main(int argc,
       printf("version 0.2\n");
       exit(0);
       
+    } else if (strcmp(argv[0],"-quiet") == 0) {
+      
+      quiet = 1;
+      
+    } else if (strcmp(argv[0],"-not-quiet") == 0) {
+      
+      quiet = 0;
+      
     } else if (strcmp(argv[0],"-debug") == 0) {
       
       debug = 1;
@@ -1775,6 +2142,14 @@ main(int argc,
     } else if (strcmp(argv[0],"-no-compact") == 0) {
       
       compact = 0;
+      
+    } else if (strcmp(argv[0],"-draft") == 0) {
+      
+      draft = 1;
+      
+    } else if (strcmp(argv[0],"-rfc") == 0) {
+      
+      draft = 0;
       
     } else if (strcmp(argv[0],"-port") == 0 && argc > 1 && isdigit(argv[1][0])) {
 
