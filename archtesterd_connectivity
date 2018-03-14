@@ -154,6 +154,7 @@ then
   count=`expr $count + 1`
 fi
 
+if [ $v4publicfound = 1 -o $v6found = 1 ]
 then
     mode=good
 else
