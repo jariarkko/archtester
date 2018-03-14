@@ -5,8 +5,6 @@
 #
 
 debug=0
-sleeptime=2
-blinkhalftime=0.3
 logfile=/var/log/archtesterd_connectivity.log
 statusfile=/var/log/archtesterd_connectivity.status
 
@@ -133,11 +131,6 @@ do
 	x-q)
 	    shift
 	    debug=0;;
-	x-s)
-	    shift
-	    sleeptime=$1
-	    shift
-	    debug=0;;
 	*)
 	    echo "archtester: unexpected argument: $1"
 	    exit 1;;
@@ -157,7 +150,7 @@ else
 	mode=bad
     fi
 fi
-archtester_ledsmode $mode $sleeptime
+echo $mode
 archtester_debug "Analysis result = $mode"
 if [ -f $statusfile ]
 then
