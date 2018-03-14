@@ -872,6 +872,7 @@ archtesterd_addtobuffer_u32(unsigned int value,
 static unsigned int
 archtesterd_bufferremaining(unsigned int bufferLength,
 			    unsigned int* position) {
+  debugf("archtesterd_bufferremaining position %u buffer size %u: %u remains", *position, bufferLength, bufferLength - *position);
   archtesterd_assert(*position <= bufferLength);
   return(bufferLength - *position);
 }
@@ -1856,6 +1857,9 @@ archtesterd_tlsver_parseservermessage(const unsigned char* message,
   unsigned char alert_description;
   unsigned int recordEndPosition;
   
+  debugf("position %u messageLength %u", *position, messageLength);
+  archtesterd_assert(*position <= messageLength);
+  
   //
   // Record layer: content_type, version, and length
   //
@@ -1874,22 +1878,39 @@ archtesterd_tlsver_parseservermessage(const unsigned char* message,
   if (!archtesterd_getfrombuffer_u16(&record_layer_length,message,messageLength,position)) return(archtesterd_tlsver_result_failed);
   debugf("parseservermessage: record layer length = %x", record_layer_length);
   
+  archtesterd_assert(*position <= messageLength);
+  
   if (record_layer_length > archtesterd_bufferremaining(messageLength,position)) {
     debugf("have to wait for more, record is %u bytes but only %u bytes remaining in buffer",
 	   record_layer_length, archtesterd_bufferremaining(messageLength,position));
+    archtesterd_assert(*position >= 5);
     *position -= 5;
+    archtesterd_assert(*position <= messageLength);
     return(archtesterd_tlsver_result_waitformore);
   }
   
+  archtesterd_assert(*position <= messageLength);
+  
   switch (record_layer_content_type) {
+      
   case ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_ALERT:
     if (!archtesterd_getfrombuffer_u8(&alert_level,message,messageLength,position)) return(0);
     if (!archtesterd_getfrombuffer_u8(&alert_description,message,messageLength,position)) return(0);
     fatalf("TLS Alert %u.%u (%s) received", alert_level, alert_description, archtesterd_tlsver_getalerttext(alert_description));
     break;
+    
+  case ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_CHANGECIPHERSPEC:
+    debugf("change cipher spec");
+    debugf("position %u messageLength %u", *position, messageLength);
+    if (archtesterd_getfrombuffer_skipbytes(record_layer_length,"change_cipher_spec",message,recordEndPosition,position))
+      return(archtesterd_tlsver_result_done);
+    else
+      return(archtesterd_tlsver_result_failed);
+      
   default:
     archtesterd_compareexpectedresult_cont(record_layer_content_type,==,ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_HANDSHAKE,
 				           "record layer content type");
+    
   }
   
   archtesterd_compareexpectedresult_cont(record_layer_length,<=,remainingMessageLength - 5,
