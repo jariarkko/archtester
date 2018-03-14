@@ -8,23 +8,76 @@ IANASRC="https://data.iana.org/TLD/tlds-alpha-by-domain.txt"
 TMPBASE=/tmp/archtesterd_tlds_
 TMPIANAFILE=${TMPBASE}tlds.txt
 TMPCLEANFILE=${TMPBASE}tlds_clean.txt
+debug=0
+resultfile=/dev/tyy
+goodlimit=2000
+
+#
+# Functions ------------------------------------------------------------------
+#
+
+#
+# Debug printouts
+#
+
+function archtester_debug {
+    if [ $debug = 1 ]
+    then
+	echo "archtester: debug: $*"
+    fi
+}
 
 #
 # Measurement --------------------------------------------------------
 #
 
 #
+# Parse arguments
+#
+
+while [ $# -gt 0 ]
+do
+    case x$1 in
+	x-debug)
+	    shift
+	    debug=1;;
+	x-quiet)
+	    shift
+	    debug=0;;
+	x-output)
+	    shift
+	    resultfile=$1
+	    shift;;
+	*)
+	    echo "archtesterd_tlds: unexpected argument: $1"
+	    exit 1;;
+    esac
+done
+
+#
 # Fetch data from IANA
 #
 
+archtester_debug "Fetching IANA file..."
 wget -q -O $TMPIANAFILE "$IANASRC"
 
 #
 # Remove junk, comments, empty lines, etc.
 #
 
+archtester_debug "Processing IANA file..."
 fgrep -v '#' $TMPIANAFILE |
 egrep -v '^ *$'> $TMPCLEANFILE
 
-cat $TMPCLEANFILE |
-wc -l
+count=`cat $TMPCLEANFILE | wc -l`
+
+if [ $count -le $goodlimit ]
+then
+    status=good
+else
+    status=bad
+fi
+
+echo $status:$count > $resultfile
+
+exit 0

@@ -191,8 +191,9 @@ function archtester_loop {
     while true
     do
 
-	archtesterd_connectivity $opts -w $resultfile
-	mode=`cat $resultfile`
+	archtesterd_connectivity $opts -output $resultfile
+	fullresult=`cat $resultfile`
+	mode=`echo $fullresult | cut -f1 -d:`
 	archtester_ledsmode $mode $sleeptime
 	sleep $sleeptime
 	
@@ -210,23 +211,23 @@ function archtester_loop {
 while [ $# -gt 0 ]
 do
     case x$1 in
-	x-X)
+	x-kill)
 	    shift
 	    exec archtester_kill;;
-	x-v)
+	x-version)
 	    shift
 	    echo "archtester version " $version
 	    exit 0;;
-	x-f)
+	x-foreground)
 	    shift
 	    daemon=0;;
-	x-d)
+	x-debug)
 	    shift
 	    debug=1;;
-	x-q)
+	x-quiet)
 	    shift
 	    debug=0;;
-	x-s)
+	x-sleeptime)
 	    shift
 	    sleeptime=$1
 	    shift

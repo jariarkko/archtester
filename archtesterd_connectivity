@@ -126,25 +126,34 @@ function archtester_analyze {
 while [ $# -gt 0 ]
 do
     case x$1 in
-	x-d)
+	x-debug)
 	    shift
 	    debug=1;;
-	x-q)
+	x-quiet)
 	    shift
 	    debug=0;;
-	x-w)
+	x-output)
 	    shift
 	    resultfile=$1
 	    shift;;
 	*)
-	    echo "archtester: unexpected argument: $1"
+	    echo "archtesterd_connectivity: unexpected argument: $1"
 	    exit 1;;
     esac
 done
 
 archtester_analyze
-	
-if [ $v4publicfound = 1 -o $v6found = 1 ]
+
+count=0
+if [ $v4publicfound = 1 ]
+then
+  count=`expr $count + 1`
+fi
+if [ $v6found = 1 ]
+then
+  count=`expr $count + 1`
+fi
+
 then
     mode=good
 else
@@ -155,7 +164,7 @@ else
 	mode=bad
     fi
 fi
-echo $mode > $resultfile
+echo $mode:$count > $resultfile
 archtester_debug "Analysis result = $mode"
 if [ -f $statusfile ]
 then

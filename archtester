@@ -38,11 +38,11 @@ start)
         ;;
 stop)
 	sanity
-	$ARCHTESTERD -x
+	$ARCHTESTERD -kill
 	;;
 restart|force-reload)
 	sanity
-	$ARCHTESTERD -x
+	$ARCHTESTERD -kill
 	$ARCHTESTERD
         ;;
 try-restart)
@@ -50,7 +50,7 @@ try-restart)
 		log_warning_msg "$NAME is not running"
 	else
 		sanity
-		$ARCHTESTERD -x
+		$ARCHTESTERD -kill
 		$ARCHTESTERD
 	fi
 	;;

@@ -11,7 +11,7 @@ SOURCES=	archtester \
 		archtesterd \
 		archtesterd_connectivity \
 		archtesterd_tlds \
-		archtesterd_tlsver.c \
+		archtesterd_tlsver \
 		archtesterd_hops \
 		Makefile
 
