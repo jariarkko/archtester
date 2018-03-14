@@ -22,6 +22,12 @@
 // Type definitions --------------------------------------------------------------------------------
 //
 
+enum archtesterd_tlsver_result {
+  archtesterd_tlsver_result_done,
+  archtesterd_tlsver_result_failed,
+  archtesterd_tlsver_result_waitformore
+};
+
 struct archtesterd_tlsver_numstring {
   unsigned char id;
   const char* text;
@@ -589,6 +595,13 @@ static struct archtesterd_tlsver_numstring archtesterd_tlsver_alerts[] = {
 	  (got), (got),									\
 	  (expected), (expected));							\
     return(0);										\
+  }
+#define archtesterd_compareexpectedresult_cont(got,op,expected,what)			\
+  if (!((got) op (expected))) {								\
+    warnf("received " what " was unexpected, %u (0x%x) while expecting %u (0x%x)",	\
+	  (got), (got),									\
+	  (expected), (expected));							\
+    return(archtesterd_tlsver_result_failed);						\
   }
 
 //
@@ -1817,7 +1830,7 @@ archtesterd_tlsver_parseserverhello(const unsigned char* message,
 // Parse a server TLS record layer message
 //
   
-static int
+static enum archtesterd_tlsver_result
 archtesterd_tlsver_parseservermessage(const unsigned char* message,
                                       unsigned int messageLength,
 	                              unsigned int* position) {
@@ -1849,17 +1862,24 @@ archtesterd_tlsver_parseservermessage(const unsigned char* message,
   
   if (remainingMessageLength < 5) {
       debugf("not enough bytes for TLS record layer header");
-      return(0);
+      return(archtesterd_tlsver_result_waitformore);
   }
   
-  if (!archtesterd_getfrombuffer_u8(&record_layer_content_type,message,messageLength,position)) return(0);
+  if (!archtesterd_getfrombuffer_u8(&record_layer_content_type,message,messageLength,position)) return(archtesterd_tlsver_result_failed);
   debugf("parseservermessage: content_type = %x", record_layer_content_type);
 
-  if (!archtesterd_getfrombuffer_u16(&version_record,message,messageLength,position)) return(0);
+  if (!archtesterd_getfrombuffer_u16(&version_record,message,messageLength,position)) return(archtesterd_tlsver_result_failed);
   debugf("parseservermessage: record layer version = %x", version_record);
   
-  if (!archtesterd_getfrombuffer_u16(&record_layer_length,message,messageLength,position)) return(0);
+  if (!archtesterd_getfrombuffer_u16(&record_layer_length,message,messageLength,position)) return(archtesterd_tlsver_result_failed);
   debugf("parseservermessage: record layer length = %x", record_layer_length);
+  
+  if (record_layer_length > archtesterd_bufferremaining(messageLength,position)) {
+    debugf("have to wait for more, record is %u bytes but only %u bytes remaining in buffer",
+	   record_layer_length, archtesterd_bufferremaining(messageLength,position));
+    *position -= 5;
+    return(archtesterd_tlsver_result_waitformore);
+  }
   
   switch (record_layer_content_type) {
   case ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_ALERT:
@@ -1868,12 +1888,12 @@ archtesterd_tlsver_parseservermessage(const unsigned char* message,
     fatalf("TLS Alert %u.%u (%s) received", alert_level, alert_description, archtesterd_tlsver_getalerttext(alert_description));
     break;
   default:
-    archtesterd_compareexpectedresult(record_layer_content_type,==,ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_HANDSHAKE,
-				      "record layer content type");
+    archtesterd_compareexpectedresult_cont(record_layer_content_type,==,ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_HANDSHAKE,
+				           "record layer content type");
   }
   
-  archtesterd_compareexpectedresult(record_layer_length,<=,remainingMessageLength - 5,
-				    "record layer length");
+  archtesterd_compareexpectedresult_cont(record_layer_length,<=,remainingMessageLength - 5,
+				         "record layer length");
   
   //
   // msg_type
@@ -1881,28 +1901,37 @@ archtesterd_tlsver_parseservermessage(const unsigned char* message,
   
   if (!archtesterd_getfrombuffer_u8(&msg_type,message,messageLength,position)) return(0);
   debugf("parseservermessage: msg_type = %x (%s)", msg_type, archtesterd_tlsver_getmessagetext(msg_type));
-  archtesterd_compareexpectedresult(msg_type,==,ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_SERVER_HELLO,
-				    "message type");
   
   //
   // length
   //
   
-  if (!archtesterd_getfrombuffer_u24(&length,message,messageLength,position)) return(0);
-  debugf("parseservermessage: length = %x", length);
-  archtesterd_compareexpectedresult(length,<=,messageLength,
-				    "message length");
+  if (!archtesterd_getfrombuffer_u24(&length,message,messageLength,position)) return(archtesterd_tlsver_result_failed);
+  debugf("parseservermessage: length = %u", length);
+  archtesterd_compareexpectedresult_cont(length,<=,messageLength,
+				         "message length");
   recordEndPosition = (*position) + length;
+  debugf("parseservermessage: record end position = %u", recordEndPosition);
   
   switch (msg_type) {
+      
     case ARCHTESTERD_TLSVER_TLS_HANDSHAKETYPE_SERVER_HELLO:
-      return(archtesterd_tlsver_parseserverhello(message,
-                                                 messageLength,
-                                                 recordEndPosition,
-                                                 position));
+      debugf("processing a server_hello");
+      if (archtesterd_tlsver_parseserverhello(message,
+                                              messageLength,
+                                              recordEndPosition,
+                                              position))
+	return(archtesterd_tlsver_result_done);
+      else
+	return(archtesterd_tlsver_result_failed);
+      
     default:
-      debugf("skipping message %u (%s)", archtesterd_tlsver_getmessagetext(msg_type));
-      return(archtesterd_getfrombuffer_skipbytes(length,"unrecognised extension",message,recordEndPosition,position));
+      debugf("skipping message %u (%s)", msg_type, archtesterd_tlsver_getmessagetext(msg_type));
+      if (archtesterd_getfrombuffer_skipbytes(length,"unrecognised extension",message,recordEndPosition,position))
+	return(archtesterd_tlsver_result_done);
+      else
+	return(archtesterd_tlsver_result_failed);
+      
     }
 }
 
@@ -1910,18 +1939,33 @@ archtesterd_tlsver_parseservermessage(const unsigned char* message,
 // Parse a server messages (maybe several in one chunk of data)
 //
 
-static int
+static enum archtesterd_tlsver_result
 archtesterd_tlsver_parseservermessages(const unsigned char* message,
-	                               unsigned int messageLength) {
-  unsigned int position = 0;
-  
-  while (archtesterd_tlsver_parseservermessage(message,messageLength,&position));
-  
-  //
-  // Success
-  //
-  
-  return(1);
+ 	                               unsigned int messageLength,
+	                               unsigned int* position) {
+
+  while (1) {
+      
+    switch (archtesterd_tlsver_parseservermessage(message,messageLength,position)) {
+      
+    case archtesterd_tlsver_result_done:
+      if (archtesterd_bufferremaining(messageLength,position) > 0)
+	continue;
+      else
+	return(archtesterd_tlsver_result_done);
+      
+    case archtesterd_tlsver_result_failed:
+      return(archtesterd_tlsver_result_failed);
+      
+    case archtesterd_tlsver_result_waitformore:
+      return(archtesterd_tlsver_result_waitformore);
+      
+    default:
+      fatalf("unrecognised internal answer");
+    }
+    
+  }
+
 }
 
 //
@@ -2028,6 +2072,8 @@ archtesterd_tlsver_runtest(const char* destination) {
   unsigned int sentMessageSize;
   unsigned char receivedMessage[ARCHTESTERD_TLSVER_MAXMSGSIZE];
   int receivedMessageSize;
+  unsigned int position = 0;
+  unsigned int currentLength = 0;
   
   //
   // Create socket
@@ -2066,17 +2112,25 @@ archtesterd_tlsver_runtest(const char* destination) {
     fatalf("send failed");
   }
 
-  //
-  // Receive a reply from the server
-  if ((receivedMessageSize = recv(sock,
-				  (void*)receivedMessage,
-				  2000,
-				  0)) < 0) {
-    fatalf("recv failed");
-  }
-  
-  archtesterd_showbytes("received",receivedMessage,receivedMessageSize);
-  archtesterd_tlsver_parseservermessages(receivedMessage,receivedMessageSize);
+  do {
+
+    //
+    // Receive a reply from the server
+    //
+
+    debugf("going to read more from socket (already %u bytes)", currentLength);
+    if ((receivedMessageSize = recv(sock,
+	                            (void*)&receivedMessage[currentLength],
+				    ARCHTESTERD_TLSVER_MAXMSGSIZE - currentLength,
+				    0)) < 0) {
+      fatalf("recv failed");
+    }
+
+    currentLength += receivedMessageSize;
+    archtesterd_showbytes("received",receivedMessage,currentLength);
+    
+  } while (archtesterd_tlsver_parseservermessages(receivedMessage,currentLength,&position) ==
+	   archtesterd_tlsver_result_waitformore);
   
   close(sock);
 
