@@ -1,3 +1,62 @@
 #!/bin/bash
 
-exec hopping -quiet www.google.com
+#
+# Initialize ---------------------------------------------------------
+#
+
+debug=0
+tmpresultfile=/tmp/archtesterd_hops.tmp.out
+resultfile=/dev/tty
+
+#
+# Main program -------------------------------------------------------
+#
+
+#
+# Parse arguments
+#
+
+while [ $# -gt 0 ]
+do
+    case x$1 in
+	x-debug)
+	    shift
+	    debug=1;;
+	x-quiet)
+	    shift
+	    debug=0;;
+	x-output)
+	    shift
+	    resultfile=$1
+	    shift;;
+	*)
+	    echo "archtesterd_hops: unexpected argument: $1"
+	    exit 1;;
+    esac
+done
+
+#
+# Actual measurement -------------------------------------------------------
+#
+
+if hopping -quiet -machine-readable -no-statistics www.google.com > $tmpresultfile
+then
+    hops=`cut -f1 -d: $tmpresultfile`
+    case "x$hops" in
+	x1) verdict=good;;
+	x2) verdict=good;;
+	x3) verdict=good;;
+	x4) verdict=good;;
+	x5) verdict=good;;
+	x6) verdict=good;;
+	x7) verdict=good;;
+	x8) verdict=good;;
+	x9) verdict=good;;
+	*) verdict=bad;;
+    esac
+    echo $verdict:$hops
+else
+    echo bad:0
+fi
+
+
