@@ -9,7 +9,7 @@ TMPBASE=/tmp/archtesterd_tlds_
 TMPIANAFILE=${TMPBASE}tlds.txt
 TMPCLEANFILE=${TMPBASE}tlds_clean.txt
 debug=0
-resultfile=/dev/tyy
+resultfile=/dev/tty
 goodlimit=2000
 
 #

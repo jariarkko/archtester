@@ -1,2 +1,66 @@
 #!/bin/bash
 
+#
+# Initialize ---------------------------------------------------------
+#
+
+debug=0
+resultfile=/dev/tty
+tmpresultfile=/tmp/archtesterd_tlsver.out
+
+#
+# Main program -------------------------------------------------------
+#
+
+#
+# Parse arguments
+#
+
+while [ $# -gt 0 ]
+do
+    case x$1 in
+	x-debug)
+	    shift
+	    debug=1;;
+	x-quiet)
+	    shift
+	    debug=0;;
+	x-output)
+	    shift
+	    resultfile=$1
+	    shift;;
+	*)
+	    echo "archtesterd_tlds: unexpected argument: $1"
+	    exit 1;;
+    esac
+done
+
+#
+# Actual measurement -------------------------------------------------------
+#
+
+if tlsver -quiet > $tmpresultfile
+then
+  ver=`cat $tmpresultfile`
+  if [ "x$ver" = xunknown ]
+  then
+    echo bad:0.0 > $resultfile
+  else
+    majorver=`cut -f1 -d. $tmpresultfile`
+    minorver=`cut -f2 -d. $tmpresultfile`
+    if [ "$majorver" -gt 1 ]
+    then
+      verdict=good
+    else
+      if [ "$majorver" -gt 2 ]
+      then
+        verdict=good
+      else
+        verdict=bad
+      fi
+    fi
+    echo $verdict:$ver > $resultfile
+  fi
+else
+  echo bad:0 > $resultfile
+fi
