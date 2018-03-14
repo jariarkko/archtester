@@ -15,20 +15,12 @@ SOURCES=	archtester \
 		archtesterd_hops \
 		Makefile
 
-OBJECTS=	archtesterd_tlsver.o
-
 CFLAGS=		-g
 
 CC=		cc
 LD=		cc
 
 all:	$(PROGRAMS)
-
-archtesterd_tlsver:	$(SOURCES) $(OBJECTS)
-	$(LD) $(CFLAGS) archtesterd_tlsver.o -o archtesterd_tlsver
-
-archtesterd_tlsver.o:	$(SOURCES)
-	$(CC) $(CFLAGS) -c archtesterd_tlsver.c
 
 install:	$(PROGRAMS)
 	apt-get install bc
