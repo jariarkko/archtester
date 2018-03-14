@@ -8,9 +8,10 @@ version=0.2
 ledredpin=17
 ledgreenpin=27
 ledyellowpin=22
-logfile=/var/log/archtester.log
-cmdlogfile=/var/log/archtester.cmd.log
-cmderrlogfile=/var/log/archtester.cmderr.log
+logfile=/var/log/archtesterd.log
+resultfile=/var/log/archtesterd.res.log
+cmdlogfile=/var/log/archtesterd.cmd.log
+cmderrlogfile=/var/log/archtesterd.cmderr.log
 
 #
 # Initialize ------------------------------------------------------------
@@ -174,7 +175,13 @@ function archtester_loop {
     archtester_ledsmode flash 1.5
     sleep 1.5
     archtester_ledsmode off 0.5
-    prevmode=none
+
+    if [ $debug = 1 ]
+    then
+	opts="-d";
+    else
+	opts="";
+    fi
     
     #
     # Main loop
@@ -184,7 +191,9 @@ function archtester_loop {
     while true
     do
 
-	archtesterd_connectivity
+	archtesterd_connectivity $opts > $resultfile
+	mode=`cat $resultfile`
+	archtester_ledsmode $mode $sleeptime
 	sleep $sleeptime
 	
     done

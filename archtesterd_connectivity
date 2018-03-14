@@ -4,9 +4,11 @@
 # Initialize ------------------------------------------------------------
 #
 
-debug=1
+debug=0
 sleeptime=2
 blinkhalftime=0.3
+logfile=/var/log/archtesterd_connectivity.log
+statusfile=/var/log/archtesterd_connectivity.status
 
 #
 # Functions ------------------------------------------------------------------
@@ -157,6 +159,12 @@ else
 fi
 archtester_ledsmode $mode $sleeptime
 archtester_debug "Analysis result = $mode"
+if [ -f $statusfile ]
+then
+  prevmode=`cat $statusfile`
+else
+  prevmode=none
+fi
 if [ $mode = $prevmode ]
 then
     nop=nop
@@ -165,3 +173,4 @@ else
     echo mode=$mode v4=$v4found public=$v4publicfound v6=$v6found >> $logfile
     prevmode=$mode
 fi
+echo $prevmode > $statusfile
