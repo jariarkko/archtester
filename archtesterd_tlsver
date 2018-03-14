@@ -7,6 +7,7 @@
 debug=0
 resultfile=/dev/tty
 tmpresultfile=/tmp/archtesterd_tlsver.out
+domain=tls13.crypto.mozilla.org
 
 #
 # Main program -------------------------------------------------------
@@ -39,7 +40,7 @@ done
 # Actual measurement -------------------------------------------------------
 #
 
-if tlsver -quiet > $tmpresultfile
+if tlsver -quiet $domain > $tmpresultfile
 then
   ver=`cat $tmpresultfile`
   if [ "x$ver" = xunknown ]
