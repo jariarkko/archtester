@@ -53,7 +53,7 @@ then
     then
       verdict=good
     else
-      if [ "$majorver" -gt 2 ]
+      if [ "$minorver" -gt 2 ]
       then
         verdict=good
       else
