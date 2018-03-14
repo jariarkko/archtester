@@ -1930,7 +1930,7 @@ archtesterd_tlsver_parseservermessage(const unsigned char* message,
     break;
     
   case ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_CHANGECIPHERSPEC:
-    debugf("change cipher spec");
+    debugf("change cipher spec, record_layer_length %u", record_layer_length);
     debugf("position %u messageLength %u", *position, messageLength);
     if (archtesterd_getfrombuffer_skipbytes(record_layer_length,"change_cipher_spec",message,recordEndPosition,position)) {
       debugf("done, position %u messageLength %u", *position, messageLength);
