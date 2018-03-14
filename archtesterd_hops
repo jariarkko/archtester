@@ -52,6 +52,8 @@ then
 	x7) verdict=good;;
 	x8) verdict=good;;
 	x9) verdict=good;;
+	x10) verdict=good;;
+	x11) verdict=good;;
 	*) verdict=bad;;
     esac
     echo $verdict:$hops
