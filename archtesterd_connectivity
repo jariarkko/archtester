@@ -132,6 +132,10 @@ do
 	x-q)
 	    shift
 	    debug=0;;
+	x-w)
+	    shift
+	    resultfile=$1
+	    shift;;
 	*)
 	    echo "archtester: unexpected argument: $1"
 	    exit 1;;
