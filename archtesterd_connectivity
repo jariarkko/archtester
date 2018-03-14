@@ -1,0 +1,167 @@
+#!/bin/bash
+
+#
+# Initialize ------------------------------------------------------------
+#
+
+debug=1
+sleeptime=2
+blinkhalftime=0.3
+
+#
+# Functions ------------------------------------------------------------------
+#
+
+#
+# Debug printouts
+#
+
+function archtester_debug {
+    if [ $debug = 1 ]
+    then
+	echo "archtester: debug: $*"
+    fi
+}
+
+#
+# One round of analysis ------------------------------------------------------
+#
+
+function archtester_analyze {
+
+    archtester_debug Looking at interfaces
+
+    #
+    # Initialize analysis
+    #
+    
+    v4found=0
+    v4publicfound=0
+    v6found=0
+
+    #
+    # Determine what interfaces we have
+    #
+    
+    interfaces=`ifconfig -s|fgrep -v Iface|fgrep -v lo|cut -f1 -d' '`
+    
+    #
+    # Look at each interface, and what addresses it provides
+    #
+    
+    for interface in $interfaces
+    do
+	
+	ifconfig $interface > /tmp/interface.$interface.data
+	cat /tmp/interface.$interface.data |
+	    sed 's/inet /inet addr: /g' |
+	    grep 'inet addr:' |
+	    cut -f2 -d: |
+	    sed 's/^ *//g' |
+	    cut -f1 -d' ' > /tmp/interface.$interface.addrs.v4
+	cat /tmp/interface.$interface.data |
+	    sed 's/inet6 /inet6 addr: /g' |
+	    grep 'inet6 addr:' |
+	    cut -f2- -d: |
+	    sed 's/^ *//g' |
+	    cut -f1 -d' ' > /tmp/interface.$interface.addrs.v6
+	cat /tmp/interface.$interface.data |
+	    sed 's/inet6 /inet6 addr: /g' |
+	    grep 'inet6 addr:' |
+	    sed 's/scopeid *0x20.link./Scope: Link/g' |
+	    sed 's/scopeid *0x0.global./Scope: Global/g' |
+	    sed 's/scopeid *0x5/Scope: Link/g' |
+	    sed 's/^ *//g' |
+	    sed 's/^.*Scope://g' |
+	    sed 's/^ *//g' |
+	    cut -f1 -d' ' > /tmp/interface.$interface.scopes.v6
+	
+	#
+	# Determine from the IPv4 addresses what kind of IPv4 connectivity we have
+	#
+	
+	for a in `cat /tmp/interface.$interface.addrs.v4`
+	do
+	    case $a in
+		10.*) v4found=1;;      # RFC 1981
+		192.168.*) v4found=1;; # RFC 1981
+		172.16.*) v4found=1;;  # RFC 1981
+		169.254.*) ;;          # RFC 5731
+		0.0.0.0) ;;            # avoid special case if not assigned
+		127.*) ;;	             # avoid localhost addresses
+		*.*.*.*) v4found=1;
+			 v4publicfound=1;;
+		*) ;;                  # anything else, in case data is garbled
+	    esac
+	done
+	
+	#
+	# Determine from the IPv6 address scopes what kind of IPv6 connectivity we have
+	
+	for s in `cat /tmp/interface.$interface.scopes.v6`
+	do
+	    case $s in
+		Global) v6found=1;;
+		*) ;;
+	    esac
+	done
+	
+    done
+    
+    archtester_debug V4: $v4found
+    archtester_debug V4 public address $v4publicfound
+    archtester_debug V6: $v6found
+    
+}
+
+#
+# Main program ------------------------------------------------------------
+#
+
+#
+# Parse arguments
+#
+
+while [ $# -gt 0 ]
+do
+    case x$1 in
+	x-d)
+	    shift
+	    debug=1;;
+	x-q)
+	    shift
+	    debug=0;;
+	x-s)
+	    shift
+	    sleeptime=$1
+	    shift
+	    debug=0;;
+	*)
+	    echo "archtester: unexpected argument: $1"
+	    exit 1;;
+    esac
+done
+
+archtester_analyze
+	
+if [ $v4publicfound = 1 -o $v6found = 1 ]
+then
+    mode=good
+else
+    if [ $v4found = 0 ]
+    then
+	mode=search
+    else
+	mode=bad
+    fi
+fi
+archtester_ledsmode $mode $sleeptime
+archtester_debug "Analysis result = $mode"
+if [ $mode = $prevmode ]
+then
+    nop=nop
+else
+    date >> $logfile
+    echo mode=$mode v4=$v4found public=$v4publicfound v6=$v6found >> $logfile
+    prevmode=$mode
+fi

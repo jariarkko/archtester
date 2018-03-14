@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -579,7 +580,9 @@ static struct archtesterd_tlsver_numstring archtesterd_tlsver_alerts[] = {
 // Capacity, size, etc. definitions -----------------------------------------------------
 //
 
-#define ARCHTESTERD_TLSVER_MAXMSGSIZE	5000
+#define ARCHTESTERD_TLSVER_MAXMSGSIZE		5000
+#define ARCHTESTERD_TLSVER_MAXWAIT_USECS	(5 * 1000 * 1000)
+#define ARCHTESTERD_TLSVER_MAXWAIT_CONNECT_SECS	5
 
 //
 // Some helper macros -------------------------------------------------------------------
@@ -750,6 +753,33 @@ fatalp(const char* message) {
 static void
 archtesterd_tlsver_interrupt(int dummy) {
   interrupt = 1;
+}
+
+//
+// Time subtraction
+//
+
+static unsigned long long
+archtesterd_timediffinusecs(struct timeval* later,
+			    struct timeval* earlier) {
+  
+  archtesterd_assert(earlier != 0);
+  archtesterd_assert(later != 0);
+  
+  if (later->tv_sec < earlier->tv_sec) {
+    fatalf("expected later time to be greater, second go back %uls", earlier->tv_sec - later->tv_sec);
+  }
+  if (later->tv_sec == earlier->tv_sec) {
+    if (later->tv_usec < earlier->tv_usec) {
+      fatalf("expected later time to be greater, microsecond go back %uls", earlier->tv_usec - later->tv_usec);
+    }
+    return(later->tv_usec - earlier->tv_usec);
+  } else {
+    unsigned long long result = 1000 * 1000 * (later->tv_sec - earlier->tv_sec);
+    result += (1000*1000) - earlier->tv_usec;
+    result += later->tv_usec;
+    return(result);
+  }
 }
 
 //
@@ -2080,6 +2110,38 @@ archtesterd_tlsver_getversion() {
   return(0);
 }
  
+static int
+archtesterd_connect_withtimeout(int sock,
+	                        struct sockaddr* address,
+                          	size_t asize,
+                                struct timeval* timeout) {
+
+  fd_set writes;
+
+  fcntl(sock, F_SETFL, O_NONBLOCK);
+  debugf("doing non-blocking connect");
+  connect(sock, address, asize);
+
+  FD_ZERO(&writes);
+  FD_SET(sock, &writes);
+
+  debugf("doing a select to wait for the connect to complete");
+  
+  if (select(sock + 1, 0, &writes, 0, timeout) == 1) {
+    int so_error;
+    socklen_t len = sizeof so_error;
+	
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, &so_error, &len);
+    if (so_error == 0) {
+      debugf("socket is open");
+      return(0);
+    }
+  }
+  
+  debugf("either timeout or other error");
+  return(-1);
+}
+
 //
 // Run the actual probing
 //
@@ -2088,6 +2150,7 @@ static const char*
 archtesterd_tlsver_runtest(const char* destination) {
   
   int sock;
+  struct timeval timeout;
   struct sockaddr_in server;
   unsigned char sentMessage[ARCHTESTERD_TLSVER_MAXMSGSIZE];
   unsigned int sentMessageSize;
@@ -2116,7 +2179,9 @@ archtesterd_tlsver_runtest(const char* destination) {
   // Connect to remote server
   //
   
-  if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0) {
+  timeout.tv_sec = ARCHTESTERD_TLSVER_MAXWAIT_CONNECT_SECS;
+  timeout.tv_usec = 0;
+  if (archtesterd_connect_withtimeout(sock , (struct sockaddr *)&server , sizeof(server), &timeout) < 0) {
     fatalf("connect failed");
   }
   
@@ -2139,12 +2204,33 @@ archtesterd_tlsver_runtest(const char* destination) {
     // Receive a reply from the server
     //
 
+    struct timeval now;
+    fd_set reads;
+    int selres;
+    unsigned long long diff;
+    
+    if (interrupt) exit(1);
+    
+    archtesterd_tlsver_getcurrenttime(&now);
+    diff = archtesterd_timediffinusecs(&now,&startTime);
+    if (diff >= ARCHTESTERD_TLSVER_MAXWAIT_USECS)
+      fatalf("timed out");
+    
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 50 * 1000;
+    
+    FD_ZERO(&reads);
+    FD_SET(sock,&reads);
+    debugf("going into select for %lu s %lu us", timeout.tv_sec, timeout.tv_usec);
+    selres = select(1, &reads, 0, 0, &timeout);
+    
     debugf("going to read more from socket (already %u bytes)", currentLength);
     if ((receivedMessageSize = recv(sock,
 	                            (void*)&receivedMessage[currentLength],
 				    ARCHTESTERD_TLSVER_MAXMSGSIZE - currentLength,
-				    0)) < 0) {
-      fatalf("recv failed");
+				    MSG_DONTWAIT)) < 0) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+      else fatalf("recv failed");
     }
 
     currentLength += receivedMessageSize;

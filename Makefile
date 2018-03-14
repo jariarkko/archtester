@@ -1,12 +1,15 @@
 
-PROGRAMS=	archtester \
-		archtesterd \
+PROGRAMS_INIT=	archtester
+PROGRAMS_BIN=	archtesterd \
+		archtesterd_connectivity \
 		archtesterd_tlds \
 		archtesterd_tlsver \
 		archtesterd_hops
-
+PROGRAMS=	$(PROGRAMS_INIT) \
+		$(PROGRAMS_BIN)
 SOURCES=	archtester \
 		archtesterd \
+		archtesterd_connectivity \
 		archtesterd_tlds \
 		archtesterd_tlsver.c \
 		archtesterd_hops \
@@ -29,8 +32,8 @@ archtesterd_tlsver.o:	$(SOURCES)
 
 install:	$(PROGRAMS)
 	apt-get install bc
-	cp archtesterd archtesterd_hops archtesterd_tlds /sbin
-	cp archtester /etc/init.d/
+	cp $(PROGRAMS_BIN) /sbin
+	cp $(PROGRAMS_INIT) /etc/init.d/
 	update-rc.d archtester defaults
 
 wc:
