@@ -19,7 +19,7 @@ statusfile=/var/log/archtesterd_connectivity.status
 function archtester_debug {
     if [ $debug = 1 ]
     then
-	echo "archtester: debug: $*"
+	echo "archtester: debug: $*" 1>&2
     fi
 }
 
@@ -132,7 +132,7 @@ do
 	    shift
 	    debug=0;;
 	*)
-	    echo "archtester: unexpected argument: $1"
+	    echo "archtester: unexpected argument: $1" 1>&2
 	    exit 1;;
     esac
 done
