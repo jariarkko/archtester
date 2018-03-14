@@ -7,6 +7,7 @@
 debug=0
 logfile=/var/log/archtesterd_connectivity.log
 statusfile=/var/log/archtesterd_connectivity.status
+resultfile=/dev/tty
 
 #
 # Functions ------------------------------------------------------------------
@@ -19,7 +20,7 @@ statusfile=/var/log/archtesterd_connectivity.status
 function archtester_debug {
     if [ $debug = 1 ]
     then
-	echo "archtester: debug: $*" 1>&2
+	echo "archtester: debug: $*"
     fi
 }
 
@@ -132,7 +133,7 @@ do
 	    shift
 	    debug=0;;
 	*)
-	    echo "archtester: unexpected argument: $1" 1>&2
+	    echo "archtester: unexpected argument: $1"
 	    exit 1;;
     esac
 done
@@ -150,7 +151,7 @@ else
 	mode=bad
     fi
 fi
-echo $mode
+echo $mode > $resultfile
 archtester_debug "Analysis result = $mode"
 if [ -f $statusfile ]
 then

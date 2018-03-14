@@ -191,7 +191,7 @@ function archtester_loop {
     while true
     do
 
-	archtesterd_connectivity $opts > $resultfile
+	archtesterd_connectivity $opts -w $resultfile
 	mode=`cat $resultfile`
 	archtester_ledsmode $mode $sleeptime
 	sleep $sleeptime
