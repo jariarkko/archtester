@@ -40,7 +40,7 @@ done
 # Actual measurement -------------------------------------------------------
 #
 
-if tlsver -quiet $domain > $tmpresultfile
+if tlsver -rfc -quiet $domain > $tmpresultfile
 then
   ver=`cat $tmpresultfile`
   if [ "x$ver" = xunknown ]
