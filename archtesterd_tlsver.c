@@ -1932,10 +1932,13 @@ archtesterd_tlsver_parseservermessage(const unsigned char* message,
   case ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_CHANGECIPHERSPEC:
     debugf("change cipher spec");
     debugf("position %u messageLength %u", *position, messageLength);
-    if (archtesterd_getfrombuffer_skipbytes(record_layer_length,"change_cipher_spec",message,recordEndPosition,position))
+    if (archtesterd_getfrombuffer_skipbytes(record_layer_length,"change_cipher_spec",message,recordEndPosition,position)) {
+      debugf("done, position %u messageLength %u", *position, messageLength);
       return(archtesterd_tlsver_result_done);
-    else
+    } else {
+      debugf("failed, position %u messageLength %u", *position, messageLength);
       return(archtesterd_tlsver_result_failed);
+    }
       
   default:
     archtesterd_compareexpectedresult_cont(record_layer_content_type,==,ARCHTESTERD_TLSVER_TLS_RECORDLAYER_CONTENT_TYPE_HANDSHAKE,
