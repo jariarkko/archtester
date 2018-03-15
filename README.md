@@ -3,7 +3,7 @@
 
 The Network Architecture Tester (NAT) is a tool for testing whether a given network has a clean architecture. The software is designed to run on a Raspberry Pi environment, but is easily portable to other environments as well.
 
-The GitHub home for this project is https://github.com/jariarkko/archtester. The tool has been written by Jari Arkko at Ericsson Research. It also includes, separately, the hopping and tlsver tools, see https://github.com/jariarkko/hopping and https://github.com/jariarkko/tlsver.
+The GitHub home for this project is https://github.com/jariarkko/archtester. The tool has been written by Jari Arkko at Ericsson Research and is open source under the BSD license. It also includes, separately, the hopping and tlsver tools, see https://github.com/jariarkko/hopping and https://github.com/jariarkko/tlsver.
 
 The basic operation of the tester is to plug it into an Ethernet cable, and let the tester determine whether the network is correctly designed. While the tester is establishing a connection to the network, the yellow led blinks. If the network is correctly designed, a green light lights up. Otherwise, the red "Architecture Fault" light lights up.
 
