@@ -301,8 +301,8 @@ done
 # Handle confifguration
 #
 
-archtesterd_fetchconfig
-archtesterd_readconfig
+archtester_fetchconfig
+archtester_readconfig
 
 #
 # Handle software updates
