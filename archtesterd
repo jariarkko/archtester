@@ -298,6 +298,17 @@ do
 done
 
 #
+# Handle confifguration
+#
+
+archtesterd_fetchconfig
+archtesterd_readconfig
+
+#
+# Handle software updates
+#
+
+#
 # Decide if to run as a daemon or not
 #
 
