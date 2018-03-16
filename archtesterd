@@ -119,6 +119,18 @@ function archtester_readconfig {
 }
 
 #
+# Update software if necessary
+#
+
+function archtester_softwareupdate {
+    archtester_debug expected generation $EXPECTEDGENERATION current generation $testergeneration
+    if [ $EXPECTEDGENERATION -lt $testergeneration ]
+    then
+	archtester_debug should update to $EXPECTEDGENERATION...
+    fi
+}
+
+#
 # Initialize leds
 #
 
@@ -333,6 +345,7 @@ done
 
 archtester_fetchconfig
 archtester_readconfig
+archtester_softwareupdate
 
 #
 # Handle software updates
