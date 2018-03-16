@@ -14,13 +14,15 @@ SOURCES=	archtester \
 		archtesterd_tlsver \
 		archtesterd_hops \
 		Makefile
+SOFTWAREPACKAGE=software.tgz
 
 CFLAGS=		-g
 
 CC=		cc
 LD=		cc
 
-all:	$(PROGRAMS)
+all:	$(PROGRAMS) \
+	$(SOFTWAREPACKAGE)
 
 install:	$(PROGRAMS)
 	apt-get install -y bc wget
@@ -29,6 +31,10 @@ install:	$(PROGRAMS)
 	cp $(PROGRAMS_BIN) /sbin
 	cp $(PROGRAMS_INIT) /etc/init.d/
 	update-rc.d archtester defaults
+
+software.tgz:	$(SOURCES)
+	-rm -f software.tgz
+	tar czf software.tgz $(SOURCES)
 
 wc:
 	wc -l $(SOURCES)
