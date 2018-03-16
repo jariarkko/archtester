@@ -32,6 +32,11 @@ deepdebug=0
 sleeptime=2
 blinkhalftime=0.3
 useleds=1
+originalarguments="$*"
+
+#
+# Initialize ------------------------------------------------------------
+#
 
 touch $logfile
 date >> $logfile
@@ -124,9 +129,36 @@ function archtester_readconfig {
 
 function archtester_softwareupdate {
     archtester_debug expected generation $EXPECTEDGENERATION current generation $testergeneration
-    if [ $EXPECTEDGENERATION -lt $testergeneration ]
+    if [ $EXPECTEDGENERATION -gt $testergeneration ]
     then
 	archtester_debug should update to $EXPECTEDGENERATION...
+	tmpswfile=/tmp/archtester.software.tgz
+	rm -f $tmpswfile 2> /dev/null > /dev/null
+	if wget -q -O $tmpswfile $testerconfigserver/$testerid/software.tgz
+	then
+	    if [ -s $tmpswfile ]
+	    then
+		if tar tzf $tmpswfile > /dev/null
+		then
+		    archtester_debug we have new software, update to it
+		    tmpswupdatescript=/tmp/archtester.software.update.sh
+		    (echo "#!/bin/bash"
+		     echo "mkdir -p /root/archtester /root/hopping /root/tlsver"
+		     echo "cd /root/archtester"
+		     echo "tar xzf $tmpswfile"
+		     echo "make all install"
+		     echo "(cd ../hopping; git pull; make all install)"
+		     echo "(cd ../tlsver; git pull; make all install)"
+		     echo "exec ./archtester $originalarguments") > $tmpswupdatescript
+		else
+		    archtester_debug software file is not a readable tgz file
+		fi
+	    else
+		archtester_debug software file is zero size
+	    fi
+	else
+	    archtester_debug cannot wget software
+	fi
     fi
 }
 
