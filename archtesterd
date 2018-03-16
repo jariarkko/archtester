@@ -5,7 +5,7 @@
 #
 
 testerconfigserver=https://www.suckagetest.net/archtester
-testergeneration=100
+testergeneration=101
 configfile=/etc/archtester/config.txt
 if [ -s $configfile ]
 then
@@ -13,7 +13,7 @@ then
 else
     testerid=dev0001
 fi
-version=0.2
+version=0.5
 ledredpin=17
 ledgreenpin=27
 ledyellowpin=22
@@ -23,7 +23,7 @@ cmdlogfile=/var/log/archtesterd.cmd.log
 cmderrlogfile=/var/log/archtesterd.cmderr.log
 
 #
-# Initialize ------------------------------------------------------------
+# Configuration options -------------------------------------------------
 #
 
 daemon=1
@@ -31,6 +31,7 @@ debug=1
 deepdebug=0
 sleeptime=2
 blinkhalftime=0.3
+useleds=1
 
 touch $logfile
 date >> $logfile
@@ -122,9 +123,12 @@ function archtester_readconfig {
 #
 
 function archtester_ledinit {
-  gpio -g mode $ledredpin out
-  gpio -g mode $ledgreenpin out
-  gpio -g mode $ledyellowpin out
+    if [ $useleds = 1 ]
+    then
+	gpio -g mode $ledredpin out
+	gpio -g mode $ledgreenpin out
+	gpio -g mode $ledyellowpin out
+    fi
 }
 
 #
@@ -134,23 +138,26 @@ function archtester_ledinit {
 #
 
 function archtester_ledblink {
-    pin=$1
-    sleeptimearg=$2
-    archtester_deepdebug Led $pin set to blink
-    sleeptimeargm=`(echo scale=0; echo "$sleeptimearg * 100") | bc | cut -f1 -d.`
-    archtester_deepdebug "Sleeptime $sleeptimearg, sleeptimem $sleeptimeargm"
-    tused=0
-    tusedm=0
-    while [ $tusedm -lt $sleeptimeargm ]
-    do
-        gpio -g write $pin 1
-    	sleep $blinkhalftime
-        gpio -g write $pin 0
-    	sleep $blinkhalftime
-	tused=`(echo scale=4; echo $tused + $blinkhalftime + $blinkhalftime) | bc`
- 	tusedm=`(echo scale=0; echo "$tused * 100") | bc | cut -f1 -d.`
- 	archtester_deepdebug "Tused $tused, tusedm $tusedm"
-    done
+    if [ $useleds = 1 ]
+    then
+	pin=$1
+	sleeptimearg=$2
+	archtester_deepdebug Led $pin set to blink
+	sleeptimeargm=`(echo scale=0; echo "$sleeptimearg * 100") | bc | cut -f1 -d.`
+	archtester_deepdebug "Sleeptime $sleeptimearg, sleeptimem $sleeptimeargm"
+	tused=0
+	tusedm=0
+	while [ $tusedm -lt $sleeptimeargm ]
+	do
+            gpio -g write $pin 1
+    	    sleep $blinkhalftime
+            gpio -g write $pin 0
+    	    sleep $blinkhalftime
+	    tused=`(echo scale=4; echo $tused + $blinkhalftime + $blinkhalftime) | bc`
+ 	    tusedm=`(echo scale=0; echo "$tused * 100") | bc | cut -f1 -d.`
+ 	    archtester_deepdebug "Tused $tused, tusedm $tusedm"
+	done
+    fi
 }
 
 #
@@ -160,21 +167,24 @@ function archtester_ledblink {
 #
 
 function archtester_ledset {
-    pinni=$1
-    state=$2
-    sleeparg=$3
-    case $state in
-	off)
-	    archtester_deepdebug Led $pinni set to off
-	    gpio -g write $pinni 0;;
-	on)
-	    archtester_deepdebug Led $pinni set to on
-	    gpio -g write $pinni 1;;
-	blink)
-	    archtester_ledblink $pinni $sleeparg &
-	    nop=nop;;
-	*) nop=nop;;
-    esac
+    if [ $useleds = 1 ]
+    then
+	pinni=$1
+	state=$2
+	sleeparg=$3
+	case $state in
+	    off)
+		archtester_deepdebug Led $pinni set to off
+		gpio -g write $pinni 0;;
+	    on)
+		archtester_deepdebug Led $pinni set to on
+		gpio -g write $pinni 1;;
+	    blink)
+		archtester_ledblink $pinni $sleeparg &
+		nop=nop;;
+	    *) nop=nop;;
+	esac
+    fi
 }
 
 #
@@ -185,43 +195,48 @@ function archtester_ledset {
 
 function archtester_ledsmode {
 
-    modforleds=$1
-    sleepytime=$2
-    
-    redstate=off
-    greenstate=off
-    yellowstate=off
-    
-    case $modforleds in
-	off)
-	    redstate=off
-	    greenstate=off
-	    yellowstate=off;;
-	flash)
-	    redstate=on
-	    greenstate=on
-	    yellowstate=on;;
-	search)
-	    redstate=off
-	    greenstate=off
-	    yellowstate=blink;;
-	good)
-	    redstate=off
-	    greenstate=on
-	    yellowstate=off;;
-	bad)
-	    redstate=on
-	    greenstate=off
-	    yellowstate=off;;
-	*)
-	    redstate=blinking
-	    greenstate=blinking
-	    yellowstate=blinking;;
-    esac
-    
-    archtester_ledset $ledredpin $redstate $sleepytime
-    archtester_ledset $ledgreenpin $greenstate $sleepytime
-    archtester_ledset $ledyellowpin $yellowstate $sleepytime
+    if [ $useleds = 1 ]
+    then
+
+	modforleds=$1
+	sleepytime=$2
+	
+	redstate=off
+	greenstate=off
+	yellowstate=off
+	
+	case $modforleds in
+	    off)
+		redstate=off
+		greenstate=off
+		yellowstate=off;;
+	    flash)
+		redstate=on
+		greenstate=on
+		yellowstate=on;;
+	    search)
+		redstate=off
+		greenstate=off
+		yellowstate=blink;;
+	    good)
+		redstate=off
+		greenstate=on
+		yellowstate=off;;
+	    bad)
+		redstate=on
+		greenstate=off
+		yellowstate=off;;
+	    *)
+		redstate=blinking
+		greenstate=blinking
+		yellowstate=blinking;;
+	esac
+	
+	archtester_ledset $ledredpin $redstate $sleepytime
+	archtester_ledset $ledgreenpin $greenstate $sleepytime
+	archtester_ledset $ledyellowpin $yellowstate $sleepytime
+
+    fi
 }
 
 #
@@ -295,6 +310,12 @@ do
 	x-quiet)
 	    shift
 	    debug=0;;
+	x-no-leds)
+	    shift
+	    useleds=0;;
+	x-leds)
+	    shift
+	    useleds=1;;
 	x-sleeptime)
 	    shift
 	    sleeptime=$1
