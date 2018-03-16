@@ -5,9 +5,14 @@
 #
 
 testerconfigserver=https://www.suckagetest.net/archtester
-testerid=dev0001
 testergeneration=100
 configfile=/etc/archtester/config.txt
+if [ -s $configfile ]
+then
+    testerid=`grep TESTERID $configfile | cut -f2 -d=`
+else
+    testerid=dev0001
+fi
 version=0.2
 ledredpin=17
 ledgreenpin=27
@@ -78,10 +83,11 @@ function archtester_fetchconfig {
 }
 
 #
-# Fetch config
+# Read config
 #
 
 function archtester_readconfig {
+    archtester_debug reading config file $configfile ...
     if [ -s $configfile ]
     then
       EXPECTEDGENERATION=`grep GENERATION= $configfile | cut -f2 -d=`
@@ -100,6 +106,7 @@ function archtester_readconfig {
     then
 	EXPECTEDMODE=archtesterd_connectivity
     fi
+    archtester_debug expected generation $EXPECTEDGENERATION expected mode $EXPECTEDMODE
 }
 
 #
@@ -229,7 +236,7 @@ function archtester_loop {
 
     if [ $debug = 1 ]
     then
-	opts="-d";
+	opts="-debug";
     else
 	opts="";
     fi
@@ -242,7 +249,8 @@ function archtester_loop {
     while true
     do
 
-	archtesterd_connectivity $opts -output $resultfile
+	echo looping with $EXPECTEDMODE...
+	$EXPECTEDMODE $opts -output $resultfile
 	fullresult=`cat $resultfile`
 	mode=`echo $fullresult | cut -f1 -d:`
 	archtester_ledsmode $mode $sleeptime
