@@ -23,7 +23,9 @@ LD=		cc
 all:	$(PROGRAMS)
 
 install:	$(PROGRAMS)
-	apt-get install bc
+	apt-get install bc wget
+	(cd ..; git clone https://github.com/jariarkko/hopping.git; cd hopping; sudo make all install)
+	(cd ..; git clone https://github.com/jariarkko/tlsver.git; cd tlsver; sudo make all install)
 	cp $(PROGRAMS_BIN) /sbin
 	cp $(PROGRAMS_INIT) /etc/init.d/
 	update-rc.d archtester defaults

@@ -58,7 +58,7 @@ then
     esac
     echo $verdict:$hops
 else
-    echo bad:0
+    echo search:0
 fi
 
 

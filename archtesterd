@@ -4,6 +4,10 @@
 # Constants -------------------------------------------------------------
 #
 
+testerconfigserver=https://www.suckagetest.net/archtester
+testerid=dev0001
+testergeneration=100
+configfile=/etc/archtester/config.txt
 version=0.2
 ledredpin=17
 ledgreenpin=27
@@ -48,6 +52,53 @@ function archtester_debug {
     if [ $debug = 1 ]
     then
 	echo "archtester: debug: $*"
+    fi
+}
+
+#
+# Fetch config
+#
+
+function archtester_fetchconfig {
+  archtester_debug fetching config...
+  tmpfile=/tmp/archtester.config.txt
+  mkdir -p /etc/archtester
+  if wget -q -O $tmpfile $testerconfigserver/$testerid/config.txt
+  then
+    if [ -s $tmpfile ]
+    then
+	cp $tmpfile $configfile
+	archtester_debug successfully retrieved config file
+    else
+	archtester_debug retrieved config file is zero length, bypassing...
+    fi
+  else
+      archotester_debug cannot retrieve config file, bypassing...
+  fi
+}
+
+#
+# Fetch config
+#
+
+function archtester_readconfig {
+    if [ -s $configfile ]
+    then
+      EXPECTEDGENERATION=`grep GENERATION= $configfile | cut -f2 -d=`
+      EXPECTEDMODE=`grep MODE= $configfile | cut -f2 -d=`
+    else
+      EXPECTEDGENERATION=
+      EXPECTEDMODE=
+    fi
+    archtester_debug generation $EXPECTEDGENERATION mode $EXPECTEDMODE
+    # some sanity checks on data
+    if [ "x$EXPECTEDGENERATION" = "x" ]
+    then
+	EXPECTEDGENERATION=$testergeneration
+    fi
+    if [ "x$EXPECTEDMODE" = "x" ]
+    then
+	EXPECTEDMODE=archtesterd_connectivity
     fi
 }
 
