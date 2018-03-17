@@ -5,7 +5,7 @@
 #
 
 testerconfigserver=https://www.suckagetest.net/archtester
-testergeneration=101
+testergeneration=100
 configfile=/etc/archtester/config.txt
 if [ -s $configfile ]
 then
@@ -21,6 +21,7 @@ logfile=/var/log/archtesterd.log
 resultfile=/var/log/archtesterd.res.log
 cmdlogfile=/var/log/archtesterd.cmd.log
 cmderrlogfile=/var/log/archtesterd.cmderr.log
+debugoutputfile=/tmp/archtesterd.debug
 
 #
 # Configuration options -------------------------------------------------
@@ -38,6 +39,7 @@ originalarguments="$*"
 # Initialize ------------------------------------------------------------
 #
 
+touch $debugoutputfile
 touch $logfile
 date >> $logfile
 echo "Started" >> $logfile
@@ -63,14 +65,24 @@ function archtester_kill {
 function archtester_debug {
     if [ $debug = 1 ]
     then
-	echo "archtester: debug: $*"
+        if [ $daemon = 1 ]
+	then
+	    echo "archtester: debug: $*" >> $debugoutputfile
+	else
+	    echo "archtester: debug: $*"
+	fi
     fi
 }
 
 function archtester_deepdebug {
     if [ $deepdebug = 1 ]
     then
-	echo "archtester: debug: $*"
+        if [ $daemon = 1 ]
+	then
+	    echo "archtester: debug: $*" >> $debugoutputfile
+	else
+	    echo "archtester: debug: $*"
+	fi
     fi
 }
 
@@ -150,6 +162,8 @@ function archtester_softwareupdate {
 		     echo "(cd ../hopping; git pull; make all install)"
 		     echo "(cd ../tlsver; git pull; make all install)"
 		     echo "exec ./archtester $originalarguments") > $tmpswupdatescript
+		    archtester_debug going to execute script $tmpswupdatescript
+		    exec $tmpswupdatescript
 		else
 		    archtester_debug software file is not a readable tgz file
 		fi
