@@ -167,6 +167,7 @@ function archtester_softwareupdate {
 		     echo "(cd ../hopping; git pull; make all install)"
 		     echo "(cd ../tlsver; git pull; make all install)"
 		     echo "exec ./archtester $originalarguments") > $tmpswupdatescript
+		    chmud u+x $tmpswupdatescript
 		    archtester_debug going to execute script $tmpswupdatescript
 		    exec $tmpswupdatescript
 		else
