@@ -94,6 +94,7 @@ function archtester_deepdebug {
 
 function archtester_fetchconfig {
   archtester_debug fetching config...
+  ifconfig >> $debugoutputfile
   tmpfile=/tmp/archtester.config.txt
   mkdir -p /etc/archtester
   if wget -q $wgetopts -O $tmpfile $testerconfigserver/$testerid/config.txt
@@ -116,6 +117,7 @@ function archtester_fetchconfig {
 
 function archtester_readconfig {
     archtester_debug reading config file $configfile ...
+    ifconfig >> $debugoutputfile
     if [ -s $configfile ]
     then
       EXPECTEDGENERATION=`grep GENERATION= $configfile | cut -f2 -d=`
@@ -143,11 +145,13 @@ function archtester_readconfig {
 
 function archtester_softwareupdate {
     archtester_debug expected generation $EXPECTEDGENERATION current generation $testergeneration
+    ifconfig >> $debugoutputfile
     if [ $EXPECTEDGENERATION -gt $testergeneration ]
     then
 	archtester_debug should update to $EXPECTEDGENERATION...
 	tmpswfile=/tmp/archtester.software.tgz
 	rm -f $tmpswfile 2> /dev/null > /dev/null
+        ifconfig >> $debugoutputfile
 	if wget -q $wgetopts -O $tmpswfile $testerconfigserver/$testerid/software.tgz
 	then
 	    if [ -s $tmpswfile ]
@@ -317,7 +321,7 @@ function archtester_loop {
     archtester_ledinit
     archtester_ledsmode off 0.5
     sleep 0.5
-    archtester_ledsmode flash 4
+    archtester_ledsmode flash 10
     sleep 1.5
     archtester_ledsmode off 0.5
 
@@ -327,6 +331,19 @@ function archtester_loop {
     else
 	opts="";
     fi
+    
+    #
+    # Handle confifguration
+    #
+    
+    archtester_fetchconfig
+    archtester_readconfig
+    
+    #
+    # Handle software updates
+    #
+    
+    archtester_softwareupdate
     
     #
     # Main loop
@@ -396,18 +413,6 @@ do
 	    exit 1;;
     esac
 done
-
-#
-# Handle confifguration
-#
-
-archtester_fetchconfig
-archtester_readconfig
-archtester_softwareupdate
-
-#
-# Handle software updates
-#
 
 #
 # Decide if to run as a daemon or not
