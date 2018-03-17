@@ -26,8 +26,8 @@ all:	$(PROGRAMS) \
 
 install:	$(PROGRAMS)
 	apt-get install -y bc wget
-	(cd ..; git clone https://github.com/jariarkko/hopping.git; cd hopping; sudo make all install)
-	(cd ..; git clone https://github.com/jariarkko/tlsver.git; cd tlsver; sudo make all install)
+	(cd ..; if [ -d hopping ]; then (cd hopping; git pull); else git clone https://github.com/jariarkko/hopping.git; fi; cd hopping; sudo make all install)
+	(cd ..; if [ -d tlsver ]; then (cd tlsver; git pull); else git clone https://github.com/jariarkko/tlsver.git; fi; cd tlsver; sudo make all install)
 	cp $(PROGRAMS_BIN) /sbin
 	cp $(PROGRAMS_INIT) /etc/init.d/
 	update-rc.d archtester defaults
