@@ -15,6 +15,10 @@ SOURCES=	archtester \
 		archtesterd_hops \
 		Makefile
 SOFTWAREPACKAGE=software.tgz
+DEVICES=	dev0001 \
+		dev0002 \
+		dev0003 \
+		dev0004
 
 CFLAGS=		-g
 
@@ -37,10 +41,10 @@ software.tgz:	$(SOURCES)
 	tar czf software.tgz $(SOURCES)
 
 copy_software:	software.tgz
-	scp software.tgz root@cloud1.arkko.eu:/var/www/www.suckagetest.net/html/archtester/dev0001
-	scp software.tgz root@cloud1.arkko.eu:/var/www/www.suckagetest.net/html/archtester/dev0002
-	scp software.tgz root@cloud1.arkko.eu:/var/www/www.suckagetest.net/html/archtester/dev0003
-	scp software.tgz root@cloud1.arkko.eu:/var/www/www.suckagetest.net/html/archtester/dev0004
+	for dev in $(DEVICES)
+	do
+	    scp software.tgz root@cloud1.arkko.eu:/var/www/www.suckagetest.net/html/archtester/$(dev)
+	done
 
 wc:
 	wc -l $(SOURCES)
