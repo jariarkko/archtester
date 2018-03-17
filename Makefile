@@ -48,3 +48,5 @@ wc:
 
 clean:
 	-rm *~
+	-rm software.tgz
+
