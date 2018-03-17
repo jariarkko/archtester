@@ -44,9 +44,9 @@ done
 if tlsver -rfc -quiet $domain > $tmpresultfile
 then
   ver=`cat $tmpresultfile`
-  if [ "x$ver" = xunknown ]
+  if [ "x$ver" = xunknown -o "x$ver" = x ]
   then
-    echo bad:0.0 > $resultfile
+    echo search:0.0 > $resultfile
   else
     majorver=`cut -f1 -d. $tmpresultfile`
     minorver=`cut -f2 -d. $tmpresultfile`
@@ -64,5 +64,5 @@ then
     echo $verdict:$ver > $resultfile
   fi
 else
-  echo bad:0 > $resultfile
+  echo search:0 > $resultfile
 fi
