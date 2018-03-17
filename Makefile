@@ -41,10 +41,7 @@ software.tgz:	$(SOURCES)
 	tar czf software.tgz $(SOURCES)
 
 copy_software:	software.tgz
-	for dev in $(DEVICES)
-	do
-	    scp software.tgz root@cloud1.arkko.eu:/var/www/www.suckagetest.net/html/archtester/$(dev)
-	done
+	for dev in $(DEVICES); do scp software.tgz root@cloud1.arkko.eu:/var/www/www.suckagetest.net/html/archtester/$(dev); done
 
 wc:
 	wc -l $(SOURCES)
