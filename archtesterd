@@ -317,7 +317,7 @@ function archtester_loop {
     archtester_ledinit
     archtester_ledsmode off 0.5
     sleep 0.5
-    archtester_ledsmode flash 1.5
+    archtester_ledsmode flash 4
     sleep 1.5
     archtester_ledsmode off 0.5
 
