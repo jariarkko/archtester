@@ -22,6 +22,7 @@ resultfile=/var/log/archtesterd.res.log
 cmdlogfile=/var/log/archtesterd.cmd.log
 cmderrlogfile=/var/log/archtesterd.cmderr.log
 debugoutputfile=/tmp/archtesterd.debug
+wgetopts="--dns-timeout=4 --connect-timeout=4 --read-timeout=10"
 
 #
 # Configuration options -------------------------------------------------
@@ -33,6 +34,7 @@ deepdebug=0
 sleeptime=2
 blinkhalftime=0.3
 useleds=1
+allowinstall=1
 originalarguments="$*"
 
 #
@@ -94,7 +96,7 @@ function archtester_fetchconfig {
   archtester_debug fetching config...
   tmpfile=/tmp/archtester.config.txt
   mkdir -p /etc/archtester
-  if wget -q -O $tmpfile $testerconfigserver/$testerid/config.txt
+  if wget -q $wgetopts -O $tmpfile $testerconfigserver/$testerid/config.txt
   then
     if [ -s $tmpfile ]
     then
@@ -146,7 +148,7 @@ function archtester_softwareupdate {
 	archtester_debug should update to $EXPECTEDGENERATION...
 	tmpswfile=/tmp/archtester.software.tgz
 	rm -f $tmpswfile 2> /dev/null > /dev/null
-	if wget -q -O $tmpswfile $testerconfigserver/$testerid/software.tgz
+	if wget -q $wgetopts -O $tmpswfile $testerconfigserver/$testerid/software.tgz
 	then
 	    if [ -s $tmpswfile ]
 	    then
@@ -158,7 +160,10 @@ function archtester_softwareupdate {
 		     echo "mkdir -p /root/archtester /root/hopping /root/tlsver"
 		     echo "cd /root/archtester"
 		     echo "tar xzf $tmpswfile"
-		     echo "make all install"
+		     if [ -s $allowinstall = 1]
+		     then
+			 echo "make all install"
+		     fi
 		     echo "(cd ../hopping; git pull; make all install)"
 		     echo "(cd ../tlsver; git pull; make all install)"
 		     echo "exec ./archtester $originalarguments") > $tmpswupdatescript
@@ -374,6 +379,12 @@ do
 	x-leds)
 	    shift
 	    useleds=1;;
+	x-disallow-install)
+	    shift
+	    allowinstall=0;;
+	x-allow-install)
+	    shift
+	    allowinstall=1;;
 	x-sleeptime)
 	    shift
 	    sleeptime=$1
