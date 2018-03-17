@@ -160,7 +160,7 @@ function archtester_softwareupdate {
 		     echo "mkdir -p /root/archtester /root/hopping /root/tlsver"
 		     echo "cd /root/archtester"
 		     echo "tar xzf $tmpswfile"
-		     if [ -s $allowinstall = 1]
+		     if [ -s $allowinstall = 1 ]
 		     then
 			 echo "make all install"
 		     fi
