@@ -161,15 +161,22 @@ function archtester_softwareupdate {
 		    archtester_debug we have new software, update to it
 		    tmpswupdatescript=/tmp/archtester.software.update.sh
 		    (echo "#!/bin/bash"
+		     echo "echo update 1 >> /tmp/archtesterd.update.log"
 		     echo "mkdir -p /root/archtester /root/hopping /root/tlsver"
+		     echo "echo update 2 >> /tmp/archtesterd.update.log"
 		     echo "cd /root/archtester"
+		     echo "echo update 3 >> /tmp/archtesterd.update.log"
 		     echo "tar xzf $tmpswfile"
+		     echo "echo update 4 >> /tmp/archtesterd.update.log"
 		     if [ $allowinstall = 1 ]
 		     then
 			 echo "make all install"
 		     fi
+		     echo "echo update 5 >> /tmp/archtesterd.update.log"
 		     echo "(cd ../hopping; git pull; make all install)"
+		     echo "echo update 6 >> /tmp/archtesterd.update.log"
 		     echo "(cd ../tlsver; git pull; make all install)"
+		     echo "echo update 7 >> /tmp/archtesterd.update.log"
 		     echo "exec ./archtesterd $originalarguments") > $tmpswupdatescript
 		    chmod u+x $tmpswupdatescript
 		    archtester_debug going to execute script $tmpswupdatescript
