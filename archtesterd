@@ -320,6 +320,8 @@ function archtester_ledsmode {
 
 function archtester_loop {
 
+    sleep 6
+    
     #
     # Initialise tester
     #
