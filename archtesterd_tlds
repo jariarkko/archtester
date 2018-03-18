@@ -11,6 +11,7 @@ TMPCLEANFILE=${TMPBASE}tlds_clean.txt
 debug=0
 resultfile=/dev/tty
 goodlimit=2000
+wgetopts="--prefer-family=IPv4 --dns-timeout=4 --connect-timeout=4 --read-timeout=10"
 
 #
 # Functions ------------------------------------------------------------------
@@ -59,7 +60,7 @@ done
 #
 
 archtester_debug "Fetching IANA file..."
-wget -q -O $TMPIANAFILE "$IANASRC"
+wget -q $wgetopts -O $TMPIANAFILE "$IANASRC"
 
 #
 # Remove junk, comments, empty lines, etc.

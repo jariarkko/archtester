@@ -19,7 +19,7 @@ resultfile=/var/log/archtesterd.res.log
 cmdlogfile=/var/log/archtesterd.cmd.log
 cmderrlogfile=/var/log/archtesterd.cmderr.log
 debugoutputfile=/tmp/archtesterd.debug
-wgetopts="--dns-timeout=4 --connect-timeout=4 --read-timeout=10"
+wgetopts="--prefer-family=IPv4 --dns-timeout=4 --connect-timeout=4 --read-timeout=10"
 
 #
 # Configuration options -------------------------------------------------
