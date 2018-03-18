@@ -7,7 +7,8 @@
 debug=0
 resultfile=/dev/tty
 tmpresultfile=/tmp/archtesterd_tlsver.out
-domain=www.google.com
+domain="google.com youtube.com facebook.com baidu.com wikipedia.com reddit.com yahoo.com google.co.in amazon.com twitter.com"
+#domain=www.google.com
 #domain=tls13.crypto.mozilla.org
 
 #
