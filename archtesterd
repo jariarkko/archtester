@@ -256,7 +256,10 @@ function archtesterd_loop {
 	fullresult=`cat $resultfile`
 	mode=`echo $fullresult | cut -f1 -d:`
 	archtesterd_debug "full result $fullresult mode $mode"
-	archtesterd_leds $mode
+        if [ $useleds = 1 ]
+        then
+	    archtesterd_leds $mode
+	fi
 	sleep $sleeptime
 	
     done
