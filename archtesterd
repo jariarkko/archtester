@@ -14,9 +14,6 @@ else
     testerid=dev0001
 fi
 version=0.5
-ledredpin=17
-ledgreenpin=27
-ledyellowpin=22
 logfile=/var/log/archtesterd.log
 resultfile=/var/log/archtesterd.res.log
 cmdlogfile=/var/log/archtesterd.cmd.log
@@ -31,11 +28,10 @@ wgetopts="--dns-timeout=4 --connect-timeout=4 --read-timeout=10"
 daemon=1
 debug=1
 deepdebug=0
-sleeptime=2
-blinkhalftime=0.3
 useleds=1
 allowinstall=1
 originalarguments="$*"
+sleeptime=2
 
 #
 # Initialize ------------------------------------------------------------
@@ -69,9 +65,9 @@ function archtester_debug {
     then
         if [ $daemon = 1 ]
 	then
-	    echo "archtester: debug: $*" >> $debugoutputfile
+	    echo "archtesterd: debug: $*" >> $debugoutputfile
 	else
-	    echo "archtester: debug: $*"
+	    echo "archtesterd: debug: $*"
 	fi
     fi
 }
@@ -81,9 +77,9 @@ function archtester_deepdebug {
     then
         if [ $daemon = 1 ]
 	then
-	    echo "archtester: debug: $*" >> $debugoutputfile
+	    echo "archtesterd: debug: $*" >> $debugoutputfile
 	else
-	    echo "archtester: debug: $*"
+	    echo "archtesterd: debug: $*"
 	fi
     fi
 }
@@ -194,127 +190,6 @@ function archtester_softwareupdate {
 }
 
 #
-# Initialize leds
-#
-
-function archtester_ledinit {
-    if [ $useleds = 1 ]
-    then
-	gpio -g mode $ledredpin out
-	gpio -g mode $ledgreenpin out
-	gpio -g mode $ledyellowpin out
-    fi
-}
-
-#
-# Blink a led
-#
-# Input: pin number (gpw numbering)
-#
-
-function archtester_ledblink {
-    if [ $useleds = 1 ]
-    then
-	pin=$1
-	sleeptimearg=$2
-	archtester_deepdebug Led $pin set to blink
-	sleeptimeargm=`(echo scale=0; echo "$sleeptimearg * 100") | bc | cut -f1 -d.`
-	archtester_deepdebug "Sleeptime $sleeptimearg, sleeptimem $sleeptimeargm"
-	tused=0
-	tusedm=0
-	while [ $tusedm -lt $sleeptimeargm ]
-	do
-            gpio -g write $pin 1
-    	    sleep $blinkhalftime
-            gpio -g write $pin 0
-    	    sleep $blinkhalftime
-	    tused=`(echo scale=4; echo $tused + $blinkhalftime + $blinkhalftime) | bc`
- 	    tusedm=`(echo scale=0; echo "$tused * 100") | bc | cut -f1 -d.`
- 	    archtester_deepdebug "Tused $tused, tusedm $tusedm"
-	done
-    fi
-}
-
-#
-# Set one led mode
-#
-# Input: pin number (gpw numbering), state (on, off, blink), sleeptime (seconds)
-#
-
-function archtester_ledset {
-    if [ $useleds = 1 ]
-    then
-	pinni=$1
-	state=$2
-	sleeparg=$3
-	case $state in
-	    off)
-		archtester_deepdebug Led $pinni set to off
-		gpio -g write $pinni 0;;
-	    on)
-		archtester_deepdebug Led $pinni set to on
-		gpio -g write $pinni 1;;
-	    blink)
-		archtester_ledblink $pinni $sleeparg &
-		nop=nop;;
-	    *) nop=nop;;
-	esac
-    fi
-}
-
-#
-# Set the led bank mode
-#
-# Input: mode (off, flash, search, good, bad), sleeptime (seconds)
-#
-
-function archtester_ledsmode {
-
-    if [ $useleds = 1 ]
-    then
-
-	modforleds=$1
-	sleepytime=$2
-	
-	redstate=off
-	greenstate=off
-	yellowstate=off
-	
-	case $modforleds in
-	    off)
-		redstate=off
-		greenstate=off
-		yellowstate=off;;
-	    flash)
-		redstate=on
-		greenstate=on
-		yellowstate=on;;
-	    search)
-		redstate=off
-		greenstate=off
-		yellowstate=blink;;
-	    good)
-		redstate=off
-		greenstate=on
-		yellowstate=off;;
-	    bad)
-		redstate=on
-		greenstate=off
-		yellowstate=off;;
-	    *)
-		redstate=blinking
-		greenstate=blinking
-		yellowstate=blinking;;
-	esac
-	
-	archtester_ledset $ledredpin $redstate $sleepytime
-	archtester_ledset $ledgreenpin $greenstate $sleepytime
-	archtester_ledset $ledyellowpin $yellowstate $sleepytime
-
-    fi
-}
-
-#
 # Analyzer main loop
 #
 
@@ -327,13 +202,14 @@ function archtester_loop {
     #
 
     archtester_debug initialize
-    archtester_ledinit
-    archtester_ledsmode off 0.5
-    sleep 0.5
-    archtester_ledsmode flash 10
-    sleep 1.5
-    archtester_ledsmode off 0.5
-
+    if [ $useleds = 1 ]
+    then
+	archtesterd_leds init
+	archtesterd_leds off
+	sleep 0.5
+	archtesterd_leds flashall
+    fi
+    
     if [ $debug = 1 ]
     then
 	opts="-debug";
@@ -344,7 +220,12 @@ function archtester_loop {
     #
     # Handle confifguration
     #
-    
+
+    sleep 10
+    if [ $useleds = 1 ]
+    then
+	archtesterd_leds flashtwo
+    fi
     archtester_fetchconfig
     archtester_readconfig
     
@@ -352,12 +233,20 @@ function archtester_loop {
     # Handle software updates
     #
     
+    if [ $useleds = 1 ]
+    then
+	archtesterd_leds flashtwolast
+    fi
     archtester_softwareupdate
     
     #
     # Main loop
     #
     
+    if [ $useleds = 1 ]
+    then
+	archtesterd_leds search
+    fi
     archtester_debug main loop
     while true
     do
@@ -367,7 +256,7 @@ function archtester_loop {
 	fullresult=`cat $resultfile`
 	mode=`echo $fullresult | cut -f1 -d:`
 	archtester_debug "full result $fullresult mode $mode"
-	archtester_ledsmode $mode $sleeptime
+	archtester_leds $mode
 	sleep $sleeptime
 	
     done
@@ -418,7 +307,7 @@ do
 	    shift
 	    debug=0;;
 	*)
-	    echo "archtester: unexpected argument: $1"
+	    echo "archtesterd: unexpected argument: $1"
 	    exit 1;;
     esac
 done

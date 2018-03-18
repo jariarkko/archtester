@@ -1,6 +1,7 @@
 
 PROGRAMS_INIT=	archtester
 PROGRAMS_BIN=	archtesterd \
+		archtesterd_leds \
 		archtesterd_connectivity \
 		archtesterd_tlds \
 		archtesterd_tlsver \
@@ -9,6 +10,7 @@ PROGRAMS=	$(PROGRAMS_INIT) \
 		$(PROGRAMS_BIN)
 SOURCES=	archtester \
 		archtesterd \
+		archtesterd_leds \
 		archtesterd_connectivity \
 		archtesterd_tlds \
 		archtesterd_tlsver \

@@ -1,0 +1,201 @@
+#!/bin/bash
+
+#
+# Settings ----------------------------------------------------------
+#
+
+ledredpin=17
+ledgreenpin=27
+ledyellowpin=22
+blinkhalftime=0.3
+ledsprocessesfile=/tmp/archtesterd_leds.processes
+ledsdebugoutputfile=/tmp/archtesterd_leds.debug
+deepdebug=1
+
+#
+# Functions ---------------------------------------------------------
+#
+
+#
+# Debug message printout
+#
+# Input: echoed text
+#
+
+function archtesterd_deepdebug {
+    if [ $deepdebug = 1 ]
+    then
+        echo "archtesterd: debug: $*" >> $ledsdebugoutputfile
+    fi
+}
+
+#
+# Initialize the led system
+#
+# Input: none
+#
+
+function archtesterd_leds_init {
+    archtesterd_deepdebug ledinit
+    gpio -g mode $ledredpin out
+    gpio -g mode $ledgreenpin out
+    gpio -g mode $ledyellowpin out
+}
+
+#
+# Blink a led
+#
+# Input: pin number (gpw numbering)
+#
+
+function archtesterd_leds_blink {
+    pin=$1
+    archtesterd_deepdebug Led $pin set to blink
+    while true
+    do
+        gpio -g write $pin 1
+        sleep $blinkhalftime
+        gpio -g write $pin 0
+        sleep $blinkhalftime
+    done
+}
+
+#
+# Set one led mode
+#
+# Input: pin number (gpw numbering), state (on, off, blink)
+#
+
+function archtesterd_leds_set {
+    pinni=$1
+    state=$2
+    case $state in
+        off)
+            archtesterd_deepdebug Led $pinni set to off
+    	    gpio -g write $pinni 0;;
+        on)
+    	    archtesterd_deepdebug Led $pinni set to on
+    	    gpio -g write $pinni 1;;
+        blink)
+    	    archtesterd_leds_blink $pinni &
+	    echo $! >> $ledsprocessesfile
+            archtesterd_deepdebug registered a blinker background process $!
+    	    nop=nop;;
+        *) nop=nop;;
+    esac
+}
+
+#
+# Set the led bank mode
+#
+# Input: mode (off, flashall, flashtwo, flashtwolast, search, good, bad), sleeptime (seconds)
+#
+
+function archtesterd_leds_mode {
+
+    modforleds=$1
+
+    archtesterd_deepdebug leds_mode $modforleds
+    
+    redstate=off
+    greenstate=off
+    yellowstate=off
+	
+    case $modforleds in
+        off)
+    	    redstate=off
+    	    greenstate=off
+    	    yellowstate=off;;
+	flashall)
+	    redstate=on
+	    greenstate=on
+	    yellowstate=on;;
+	flashtwo)
+	    redstate=off
+	    greenstate=on
+	    yellowstate=on;;
+	flashtwolast)
+	    redstate=on
+	    greenstate=on
+	    yellowstate=off;;
+	search)
+	    redstate=off
+	    greenstate=off
+	    yellowstate=blink;;
+	good)
+	    redstate=off
+	    greenstate=on
+	    yellowstate=off;;
+	bad)
+	    redstate=on
+	    greenstate=off
+	    yellowstate=off;;
+        *)
+	    redstate=blinking
+	    greenstate=blinking
+            yellowstate=blinking;;
+    esac
+    
+    archtesterd_leds_set $ledredpin $redstate
+    archtesterd_leds_set $ledgreenpin $greenstate
+    archtesterd_leds_set $ledyellowpin $yellowstate
+}
+
+#
+# Main program ----------------------------------------------
+#
+
+#
+# Terminate any ongoing leds programs that may still be blinking leds
+#
+
+if [ -s $ledsprocessesfile ]
+then
+    archtesterd_deepdebug kill processes `cat $ledsprocessesfile` from $$
+    kill `cat $ledsprocessesfile` 2> /dev/null > /dev/null
+    rm -f $ledsprocessesfile
+    archtesterd_deepdebug killing done from $$
+fi
+
+#
+# Process arguments
+#
+
+while [ $# -gt 0 ]
+do
+    case x$1 in
+	x-debug)
+	    shift
+	    deepdebug=1;;
+	x-quiet)
+	    shift
+	    deepdebug=0;;
+	xoff)
+	    archtesterd_leds_mode off
+	    exit 0;;
+	xflashall)
+	    archtesterd_leds_mode flashall
+	    exit 0;;
+	xflashtwo)
+	    archtesterd_leds_mode flashtwo
+	    exit 0;;
+	xsearch)
+	    archtesterd_leds_mode search
+	    exit 0;;
+	xgood)
+	    archtesterd_leds_mode good
+	    exit 0;;
+	xbad)
+	    archtesterd_leds_mode bad
+	    exit 0;;
+	xinit)
+	    archtesterd_leds_init
+	    exit 0;;
+	*)
+	    echo "archtesterd_leds: unexpected argument: $1"
+	    exit 1;;
+    esac
+done
+
+echo "archtesterd_leds: no command given"
+exit 1
