@@ -5,7 +5,7 @@
 #
 
 testerconfigserver=https://www.suckagetest.net/archtester
-testergeneration=102
+testergeneration=103
 configfile=/etc/archtester/config.txt
 if [ -s $configfile ]
 then
@@ -51,8 +51,8 @@ sync
 # Kill the archtester process
 #
 
-function archtester_kill {
-  archtester_ledsmode off 0.0
+function archtesterd_kill {
+  archtesterd_leds off
   killall archtester > /dev/null 2> /dev/null
 }
 
@@ -60,7 +60,7 @@ function archtester_kill {
 # Debug printouts
 #
 
-function archtester_debug {
+function archtesterd_debug {
     if [ $debug = 1 ]
     then
         if [ $daemon = 1 ]
@@ -72,7 +72,7 @@ function archtester_debug {
     fi
 }
 
-function archtester_deepdebug {
+function archtesterd_deepdebug {
     if [ $deepdebug = 1 ]
     then
         if [ $daemon = 1 ]
@@ -88,8 +88,8 @@ function archtester_deepdebug {
 # Fetch config
 #
 
-function archtester_fetchconfig {
-  archtester_debug fetching config...
+function archtesterd_fetchconfig {
+  archtesterd_debug fetching config...
   ifconfig >> $debugoutputfile
   tmpfile=/tmp/archtester.config.txt
   mkdir -p /etc/archtester
@@ -98,12 +98,12 @@ function archtester_fetchconfig {
     if [ -s $tmpfile ]
     then
 	cp $tmpfile $configfile
-	archtester_debug successfully retrieved config file
+	archtesterd_debug successfully retrieved config file
     else
-	archtester_debug retrieved config file is zero length, bypassing...
+	archtesterd_debug retrieved config file is zero length, bypassing...
     fi
   else
-      archtester_debug cannot retrieve config file, bypassing...
+      archtesterd_debug cannot retrieve config file, bypassing...
   fi
 }
 
@@ -111,8 +111,8 @@ function archtester_fetchconfig {
 # Read config
 #
 
-function archtester_readconfig {
-    archtester_debug reading config file $configfile ...
+function archtesterd_readconfig {
+    archtesterd_debug reading config file $configfile ...
     ifconfig >> $debugoutputfile
     if [ -s $configfile ]
     then
@@ -122,7 +122,7 @@ function archtester_readconfig {
       EXPECTEDGENERATION=
       EXPECTEDMODE=
     fi
-    archtester_debug "generation $EXPECTEDGENERATION mode $EXPECTEDMODE"
+    archtesterd_debug "generation $EXPECTEDGENERATION mode $EXPECTEDMODE"
     # some sanity checks on data
     if [ "x$EXPECTEDGENERATION" = "x" ]
     then
@@ -132,19 +132,19 @@ function archtester_readconfig {
     then
 	EXPECTEDMODE=archtesterd_connectivity
     fi
-    archtester_debug expected generation $EXPECTEDGENERATION expected mode $EXPECTEDMODE
+    archtesterd_debug expected generation $EXPECTEDGENERATION expected mode $EXPECTEDMODE
 }
 
 #
 # Update software if necessary
 #
 
-function archtester_softwareupdate {
-    archtester_debug expected generation $EXPECTEDGENERATION current generation $testergeneration
+function archtesterd_softwareupdate {
+    archtesterd_debug expected generation $EXPECTEDGENERATION current generation $testergeneration
     ifconfig >> $debugoutputfile
     if [ $EXPECTEDGENERATION -gt $testergeneration ]
     then
-	archtester_debug should update to $EXPECTEDGENERATION...
+	archtesterd_debug should update to $EXPECTEDGENERATION...
 	tmpswfile=/tmp/archtester.software.tgz
 	rm -f $tmpswfile 2> /dev/null > /dev/null
         ifconfig >> $debugoutputfile
@@ -154,7 +154,7 @@ function archtester_softwareupdate {
 	    then
 		if tar tzf $tmpswfile > /dev/null
 		then
-		    archtester_debug we have new software, update to it
+		    archtesterd_debug we have new software, update to it
 		    tmpswupdatescript=/tmp/archtester.software.update.sh
 		    (echo "#!/bin/bash"
 		     echo "echo update 1 >> /tmp/archtesterd.update.log"
@@ -175,16 +175,16 @@ function archtester_softwareupdate {
 		     echo "echo update 7 >> /tmp/archtesterd.update.log"
 		     echo "exec ./archtesterd $originalarguments") > $tmpswupdatescript
 		    chmod u+x $tmpswupdatescript
-		    archtester_debug going to execute script $tmpswupdatescript
+		    archtesterd_debug going to execute script $tmpswupdatescript
 		    exec $tmpswupdatescript
 		else
-		    archtester_debug software file is not a readable tgz file
+		    archtesterd_debug software file is not a readable tgz file
 		fi
 	    else
-		archtester_debug software file is zero size
+		archtesterd_debug software file is zero size
 	    fi
 	else
-	    archtester_debug cannot wget software
+	    archtesterd_debug cannot wget software
 	fi
     fi
 }
@@ -193,7 +193,7 @@ function archtester_softwareupdate {
 # Analyzer main loop
 #
 
-function archtester_loop {
+function archtesterd_loop {
 
     sleep 6
     
@@ -201,7 +201,7 @@ function archtester_loop {
     # Initialise tester
     #
 
-    archtester_debug initialize
+    archtesterd_debug initialize
     if [ $useleds = 1 ]
     then
 	archtesterd_leds init
@@ -226,8 +226,8 @@ function archtester_loop {
     then
 	archtesterd_leds flashtwo
     fi
-    archtester_fetchconfig
-    archtester_readconfig
+    archtesterd_fetchconfig
+    archtesterd_readconfig
     
     #
     # Handle software updates
@@ -237,7 +237,7 @@ function archtester_loop {
     then
 	archtesterd_leds flashtwolast
     fi
-    archtester_softwareupdate
+    archtesterd_softwareupdate
     
     #
     # Main loop
@@ -247,16 +247,16 @@ function archtester_loop {
     then
 	archtesterd_leds search
     fi
-    archtester_debug main loop
+    archtesterd_debug main loop
     while true
     do
 
-	archtester_debug "looping with $EXPECTEDMODE..."
+	archtesterd_debug "looping with $EXPECTEDMODE..."
 	$EXPECTEDMODE $opts -output $resultfile
 	fullresult=`cat $resultfile`
 	mode=`echo $fullresult | cut -f1 -d:`
-	archtester_debug "full result $fullresult mode $mode"
-	archtester_leds $mode
+	archtesterd_debug "full result $fullresult mode $mode"
+	archtesterd_leds $mode
 	sleep $sleeptime
 	
     done
@@ -275,7 +275,7 @@ do
     case x$1 in
 	x-kill)
 	    shift
-	    exec archtester_kill;;
+	    exec archtesterd_kill;;
 	x-version)
 	    shift
 	    echo "archtester version " $version
@@ -318,11 +318,11 @@ done
 
 if [ $daemon = 0 ]
 then
-    archtester_debug foreground
-    archtester_loop
+    archtesterd_debug foreground
+    archtesterd_loop
 else
-    archtester_debug daemon
-    archtester_loop > $cmdlogfile 2> $cmderrlogfile &
+    archtesterd_debug daemon
+    archtesterd_loop > $cmdlogfile 2> $cmderrlogfile &
     disown -r -h
     exit 0
 fi
