@@ -55,7 +55,7 @@ then
     then
       verdict=good
     else
-      if [ "$minorver" -gt 2 ]
+      if [ "$minorver" -gt 20 ]
       then
         verdict=good
       else

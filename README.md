@@ -28,13 +28,32 @@ The easiest installation method is to retrieve the software from GitHub. There i
     git clone https://github.com/jariarkko/archtester.git
     cd archtester
     sudo make all install
-  
+
+# Currently supported measuements
+
+The following measurements are currently supported:
+
+## Addressing
+
+The tester lights a green light if the device gets either a public IPv4 address or has global IPv6 address. With no connectivity, the device blinks the yellow light. With just a NATted address and no IPv6, the device lights a red light.
+
+## Domain names
+
+The tester lights a green light if the number of global TLDs is within sensible limits (defined to be under 2000).
+
+## TLS version
+
+The tester lights a green light if among the top 10 most popular web sites, there is at least some that employ TLS 1.3. This behaviour changes on 1.1.2018, when the device will require at least half of the sites to employ LTS 1.3. TLS versions beyond 1.3 or 2.0 will always light a green light.
+
+## Hops
+
+The tester lights a green light if the number of hops "to the center of the Internet" (defined as the website of popular content provider such as Google). If the number of hops is 11 or less, the tester lights the green light.
+
 # Projects
 
 Further development is still needed. We'd like to see for instance:
 
-* Building the user-pluggable interface; for now, the operation of the tester is completely fixed.
 * Adding a web-based UI where you can control the operation of the tester, or see more details. The idea is that each tester would have its own web page where you can see the most current measurement, be able to configure wireless LAN parameters, etc.
 * Adding support for wifi-networks.
-* The addition of a "selector" switch that can be used to select the type of an architectural measurement, e.g., direct connectivity, path purity, number of hops, and so on.
 * The development of further tests that facilitate the measurement of architectural factors on a given network or on the Internet.
+* Adding connectivity confirmation to the addressing test
