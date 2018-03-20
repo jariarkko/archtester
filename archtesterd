@@ -13,7 +13,7 @@ then
 else
     testerid=dev0001
 fi
-version=0.5
+version=`(echo scale=2; echo $testergeneration / 100) | bc`
 logfile=/var/log/archtesterd.log
 resultfile=/var/log/archtesterd.res.log
 cmdlogfile=/var/log/archtesterd.cmd.log
