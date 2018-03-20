@@ -29,9 +29,18 @@ The easiest installation method is to retrieve the software from GitHub. There i
     cd archtester
     sudo make all install
 
-# Currently supported measuements
+# Currently supported measurements
 
 The following measurements are currently supported:
+
+- addressing
+- domain names
+- TLS version
+- hops
+
+![Image of a tester](https://github.com/jariarkko/archtester/blob/master/doc/testercloseup.jpg?raw=true)
+
+These measurements are discussed in more detailed below:
 
 ## Addressing
 
