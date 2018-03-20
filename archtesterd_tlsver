@@ -55,11 +55,22 @@ then
     then
       verdict=good
     else
-      if [ "$minorver" -gt 20 ]
+      year=`date +%Y`
+      if [ "$year" -gt 2018 ]
       then
-        verdict=good
+        if [ "$minorver" -gt 2500 ]
+      	then
+          verdict=good
+        else
+          verdict=bad
+        fi
       else
-        verdict=bad
+        if [ "$minorver" -gt 2000 ]
+      	then
+          verdict=good
+        else
+          verdict=bad
+        fi
       fi
     fi
     echo $verdict:$ver > $resultfile
