@@ -19,7 +19,7 @@ The devices have no user interface beyond the leds. Internally, they have an ide
 
 # Installation
 
-The easiest installation method is to retrieve the software from GitHub. There is one dependency on the hopping program, which needs to fetched and compiled first. These commands should suffice:
+The easiest installation method is to retrieve the software from GitHub. There are some dependencies, but they are handled by the make command. These commands should suffice:
 
     git clone https://github.com/jariarkko/archtester.git
     cd archtester
