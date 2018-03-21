@@ -11,6 +11,7 @@ TMPCLEANFILE=${TMPBASE}tlds_clean.txt
 debug=0
 resultfile=/dev/tty
 goodlimit=2000
+yearlygrowth=100
 wgetopts="--prefer-family=IPv4 --dns-timeout=4 --connect-timeout=4 --read-timeout=10"
 
 #
@@ -70,9 +71,12 @@ archtester_debug "Processing IANA file..."
 fgrep -v '#' $TMPIANAFILE |
 egrep -v '^ *$'> $TMPCLEANFILE
 
-count=`cat $TMPCLEANFILE | wc -l`
+count=`cat $TMPCLEANFILE | wc -l | tr -d " "`
 
-if [ $count -le $goodlimit ]
+year=`date +%Y`
+diff=`expr $year - 2018`
+maxexpected=`expr $goodlimit + $yearlygrowth "*" $diff`
+if [ $count -le $maxexpected ]
 then
     status=good
 else

@@ -5,7 +5,7 @@
 #
 
 testerconfigserver=https://www.suckagetest.net/archtester
-testergeneration=107
+testergeneration=108
 configfile=/etc/archtester/config.txt
 if [ -s $configfile ]
 then
