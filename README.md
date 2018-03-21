@@ -21,16 +21,6 @@ The devices have no user interface beyond the leds. Internally, they have an ide
 
 The easiest installation method is to retrieve the software from GitHub. There is one dependency on the hopping program, which needs to fetched and compiled first. These commands should suffice:
 
-    git clone https://github.com/jariarkko/hopping.git
-    cd hopping
-    sudo make all install
-    cd ..
-    
-    git clone https://github.com/jariarkko/tlsver.git
-    cd tlsver
-    sudo make all install
-    cd ..
-    
     git clone https://github.com/jariarkko/archtester.git
     cd archtester
     sudo make all install
