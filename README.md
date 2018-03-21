@@ -11,6 +11,12 @@ The tester architecture is configurable and network-driven; the device where the
 
 ![Image of a tester](https://github.com/jariarkko/archtester/blob/master/doc/tester.jpg?raw=true)
 
+# Usage
+
+The device should be plugged into USB power (requires micro-USB at 2A). The device comes up in about a minute, and lights its leds in a specific sequence. Once the yellow led is blinking, the tester is ready for testing. Plug the device into a given network using an Ethernet cable, and in a few seconds the test results should be seen in the leds. If the yellow led continues to blink, the given network does not have apporpriate connectictivity for the tests to be performed.
+
+The devices have no user interface beyond the leds. Internally, they have an identifier (dev0001 etc), and, when network connectivity is available, the device fetches configuration information on desired measurement mode etc from the network. Otherwise, previously used mode is applied. Software updates are checked when the device boots and is connected to a wired network.
+
 # Installation
 
 The easiest installation method is to retrieve the software from GitHub. There is one dependency on the hopping program, which needs to fetched and compiled first. These commands should suffice:
